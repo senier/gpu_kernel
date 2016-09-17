@@ -10,13 +10,19 @@ set build_components {
 	drivers/framebuffer
 	drivers/input
 	drivers/timer
+	drivers/wifi
+	drivers/rtc
+	server/fs_rom
 	server/nitpicker
 	server/nit_fb
+	server/ram_fs
+	server/report_rom
 	server/terminal
 	server/terminal_log
 	test/nitpicker
 	app/launchpad
 	app/pointer
+	lib/vfs/jitterentropy
 }
 
 source ${genode_dir}/repos/base/run/platform_drv.inc
@@ -106,7 +112,7 @@ append config {
 			<service name="Framebuffer"/>
 			<service name="Input"/>
 		</provides>
-		<config xpos="0" ypos="0" width="2200" height="1800" refresh_rate="25"/>
+		<config xpos="0" ypos="0" width="3200" height="1800" refresh_rate="25"/>
 	</start>
 
 	<start name="terminal">
@@ -126,6 +132,86 @@ append config {
 	<start name="terminal_log">
 		<resource name="RAM" quantum="1M"/>
 		<provides><service name="LOG"/></provides>
+		<route>
+			<service name="LOG">       <child name="terminal_log"/> </service>
+			<any-service> <any-child/> <parent/></any-service>
+		</route>
+	</start>
+
+	<start name="rtc_drv">
+		<resource name="RAM" quantum="1M"/>
+		<provides> <service name="Rtc"/> </provides>
+		<route>
+			<service name="LOG">       <child name="terminal_log"/> </service>
+			<any-service> <any-child/> <parent/></any-service>
+		</route>
+	</start>
+
+	<start name="report_rom">
+		<resource name="RAM" quantum="2M"/>
+		<provides> <service name="Report" /> <service name="ROM" /> </provides>
+		<config> <rom/> </config>
+		<route>
+			<service name="LOG">       <child name="terminal_log"/> </service>
+			<any-service> <any-child/> <parent/></any-service>
+		</route>
+	</start>
+
+	<start name="config_fs">
+		<binary name="ram_fs"/>
+		<resource name="RAM" quantum="4M"/>
+		<provides> <service name="File_system"/> </provides>
+		<config>
+			<policy label="config_rom" root="/"/>
+			<policy label="wifi_drv -> config" root="/" writeable="yes"/>
+			<content>
+				<inline name="wlan_configuration">}
+append config "
+					<selected_network ssid=\"$::env(GENODE_WIFI_SSID)\" protection=\"WPA-PSK\" psk=\"$::env(GENODE_WIFI_PSK)\"/>"
+append config {
+				</inline>
+				<inline name="wpa_supplicant.conf"></inline>
+			</content>
+		</config>
+		<route>
+			<service name="LOG">       <child name="terminal_log"/> </service>
+			<any-service> <any-child/> <parent/></any-service>
+		</route>
+	</start>
+
+	<start name="config_rom">
+		<binary name="fs_rom"/>
+		<resource name="RAM" quantum="4M"/>
+		<provides><service name="ROM"/></provides>
+		<route>
+			<service name="File_system"> <child name="config_fs" /> </service>
+			<service name="LOG">       <child name="terminal_log"/> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>
+
+	<start name="wifi_drv">
+		<resource name="RAM" quantum="32M"/>
+		<provides> <service name="Nic"/> </provides>
+		<config ld_verbose="yes" verbose="yes">
+			<libc stdout="/dev/log" stderr="/dev/log" rtc="/dev/rtc">
+				<vfs>
+					<dir name="dev"> <log/> <rtc/>
+						<jitterentropy name="random"/>
+						<jitterentropy name="urandom"/>
+					</dir>
+					<dir name="config"> <fs label="config"/> </dir>
+				</vfs>
+			</libc>
+		</config>
+		<route>
+			<service name="Rtc"> <any-child /> </service>
+			<service name="File_system"> <child name="config_fs"/> </service>
+			<service name="Report"> <child name="report_rom"/> </service>
+			<service name="ROM"> <if-arg key="label" value="wlan_configuration" /> <child name="config_rom" /> </service>
+			<service name="LOG">       <child name="terminal_log"/> </service>
+			<any-service> <parent/> <any-child /> </any-service>
+		</route>
 	</start>
 
 </config>
@@ -133,9 +219,20 @@ append config {
 
 install_config $config
 
+set firmware_modules {
+	iwlwifi-6000-4.ucode
+	iwlwifi-6000g2a-6.ucode
+	iwlwifi-6000g2b-6.ucode
+	iwlwifi-7260-16.ucode
+	iwlwifi-7265-16.ucode
+	iwlwifi-7265D-16.ucode
+	iwlwifi-8000C-16.ucode
+}
+
 # generic modules
 set boot_modules {
-	core init
+	core
+	init
 	timer
 	nitpicker
 	pointer
@@ -144,7 +241,23 @@ set boot_modules {
 	nit_fb
 	terminal
 	terminal_log
+	rtc_drv
+	ram_fs
+	report_rom
+	fs_rom
+	vfs_jitterentropy.lib.so
+	ld.lib.so
+	libc.lib.so
+	libcrypto.lib.so
+	libssl.lib.so
+	wpa_driver_nl80211.lib.so
+	wpa_supplicant.lib.so
+	wifi.lib.so
+	wifi_drv
+	lwip.lib.so
 }
+
+append boot_modules $firmware_modules
 
 # platform-specific modules
 lappend_if [have_spec       linux] boot_modules fb_sdl
