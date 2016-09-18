@@ -209,8 +209,36 @@ append config {
 			<service name="File_system"> <child name="config_fs"/> </service>
 			<service name="Report"> <child name="report_rom"/> </service>
 			<service name="ROM"> <if-arg key="label" value="wlan_configuration" /> <child name="config_rom" /> </service>
+<!--
 			<service name="LOG">       <child name="terminal_log"/> </service>
+-->
 			<any-service> <parent/> <any-child /> </any-service>
+		</route>
+	</start>
+
+	<start name="tcp_terminal">
+		<resource name="RAM" quantum="2560K"/>
+		<provides> <service name="Terminal"/> </provides>
+		<config>
+			<policy label="tcp_terminal_log" port="8888"/>
+			<libc stdout="/dev/log">
+				<vfs> <dir name="dev"> <log/> </dir> </vfs>
+			</libc>
+		</config>
+		<route>
+			<service name="LOG">       <child name="terminal_log"/> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>
+
+	<start name="tcp_terminal_log">
+		<binary name="terminal_log"/>
+		<resource name="RAM" quantum="1M"/>
+		<provides><service name="LOG"/></provides>
+		<route>
+			<service name="LOG">       <child name="terminal_log"/> </service>
+			<service name="Terminal">  <child name="tcp_terminal"/> </service>
+			<any-service> <parent/> </any-service>
 		</route>
 	</start>
 
@@ -220,12 +248,6 @@ append config {
 install_config $config
 
 set firmware_modules {
-	iwlwifi-6000-4.ucode
-	iwlwifi-6000g2a-6.ucode
-	iwlwifi-6000g2b-6.ucode
-	iwlwifi-7260-16.ucode
-	iwlwifi-7265-16.ucode
-	iwlwifi-7265D-16.ucode
 	iwlwifi-8000C-16.ucode
 }
 
