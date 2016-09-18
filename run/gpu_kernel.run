@@ -23,6 +23,7 @@ set build_components {
 	app/launchpad
 	app/pointer
 	lib/vfs/jitterentropy
+	server/tcp_terminal
 }
 
 source ${genode_dir}/repos/base/run/platform_drv.inc
@@ -50,8 +51,9 @@ append config {
 		<service name="Timer">     <child name="timer"/> </service>
 		<service name="Terminal">  <child name="terminal"/> </service>
 		<service name="Platform">  <child name="platform_drv"/> </service>
-		<any-service><parent/></any-service>
+		<any-service> <parent/> </any-service>
 	</default-route>
+
 	<start name="timer">
 		<resource name="RAM" quantum="1M"/>
 		<provides><service name="Timer"/></provides>
@@ -132,10 +134,6 @@ append config {
 	<start name="terminal_log">
 		<resource name="RAM" quantum="1M"/>
 		<provides><service name="LOG"/></provides>
-		<route>
-			<service name="LOG">       <child name="terminal_log"/> </service>
-			<any-service> <any-child/> <parent/></any-service>
-		</route>
 	</start>
 
 	<start name="rtc_drv">
@@ -277,6 +275,8 @@ set boot_modules {
 	wifi.lib.so
 	wifi_drv
 	lwip.lib.so
+	libc_pipe.lib.so
+	tcp_terminal
 }
 
 append boot_modules $firmware_modules
