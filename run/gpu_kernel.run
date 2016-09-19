@@ -20,10 +20,12 @@ set build_components {
 	server/terminal
 	server/terminal_log
 	test/nitpicker
+	test/blk
 	app/launchpad
 	app/pointer
 	lib/vfs/jitterentropy
 	server/tcp_terminal
+	server/http_rom
 }
 
 source ${genode_dir}/repos/base/run/platform_drv.inc
@@ -191,7 +193,7 @@ append config {
 	<start name="wifi_drv">
 		<resource name="RAM" quantum="32M"/>
 		<provides> <service name="Nic"/> </provides>
-		<config ld_verbose="yes" verbose="yes">
+		<config ld_verbose="yes" verbose="no">
 			<libc stdout="/dev/log" stderr="/dev/log" rtc="/dev/rtc">
 				<vfs>
 					<dir name="dev"> <log/> <rtc/>
@@ -214,12 +216,13 @@ append config {
 		</route>
 	</start>
 
+<!--
 	<start name="tcp_terminal">
 		<resource name="RAM" quantum="2560K"/>
 		<provides> <service name="Terminal"/> </provides>
 		<config>
 			<policy label="tcp_terminal_log" port="8888"/>
-			<libc stdout="/dev/log">
+			<libc stdout="/dev/log" ip_addr="192.168.1.201" gateway="192.168.1.1" netmask="255.255.255.0">
 				<vfs> <dir name="dev"> <log/> </dir> </vfs>
 			</libc>
 		</config>
@@ -239,7 +242,31 @@ append config {
 			<any-service> <parent/> </any-service>
 		</route>
 	</start>
+-->
 
+	<start name="http_rom">
+		<resource name="RAM" quantum="2M" />
+		<provides><service name="Block"/></provides>
+		<config block_size="512" uri="http://192.168.1.247/index.bin">
+			<libc ip_addr="192.168.1.201" gateway="192.168.1.1" netmask="255.255.255.0"/>
+		</config>
+		<route>
+			<service name="ROM"> <parent/> </service>
+			<service name="LOG"> <child name="terminal_log"/> </service>
+			<any-service> <any-child/> <parent/> </any-service>
+		</route>
+	</start>
+
+	<start name="test-blk-cli">
+		<resource name="RAM" quantum="50M" />
+		<config/>
+		<route>
+			<service name="LOG"> <child name="terminal_log"/> </service>
+			<service name="Block"> <child name="http_rom"/> </service>
+			<any-service> <any-child/> <parent/> </any-service>
+		</route>
+	</start>
+		
 </config>
 }
 
@@ -277,6 +304,8 @@ set boot_modules {
 	lwip.lib.so
 	libc_pipe.lib.so
 	tcp_terminal
+	http_rom
+	test-blk-cli
 }
 
 append boot_modules $firmware_modules
