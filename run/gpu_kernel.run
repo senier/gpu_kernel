@@ -25,7 +25,7 @@ set build_components {
 	app/pointer
 	lib/vfs/jitterentropy
 	server/tcp_terminal
-	server/http_rom
+	server/http_blk
 }
 
 source ${genode_dir}/repos/base/run/platform_drv.inc
@@ -244,7 +244,7 @@ append config {
 	</start>
 -->
 
-	<start name="http_rom">
+	<start name="http_blk">
 		<resource name="RAM" quantum="2M" />
 		<provides><service name="Block"/></provides>
 		<config block_size="512" uri="http://192.168.1.247/index.bin">
@@ -262,7 +262,7 @@ append config {
 		<config/>
 		<route>
 			<service name="LOG"> <child name="terminal_log"/> </service>
-			<service name="Block"> <child name="http_rom"/> </service>
+			<service name="Block"> <child name="http_blk"/> </service>
 			<any-service> <any-child/> <parent/> </any-service>
 		</route>
 	</start>
