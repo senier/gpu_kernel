@@ -26,6 +26,7 @@ set build_components {
 	lib/vfs/jitterentropy
 	server/tcp_terminal
 	server/http_blk
+	server/rump_fs
 }
 
 source ${genode_dir}/repos/base/run/platform_drv.inc
@@ -247,7 +248,7 @@ append config {
 	<start name="http_blk">
 		<resource name="RAM" quantum="2M" />
 		<provides><service name="Block"/></provides>
-		<config block_size="512" uri="http://192.168.1.247/index.bin">
+		<config block_size="512" uri="http://192.168.1.247/wm.iso">
 			<libc ip_addr="192.168.1.201" gateway="192.168.1.1" netmask="255.255.255.0"/>
 		</config>
 		<route>
@@ -257,16 +258,55 @@ append config {
 		</route>
 	</start>
 
-	<start name="test-blk-cli">
-		<resource name="RAM" quantum="50M" />
-		<config/>
+    <start name="rump_fs">
+        <resource name="RAM" quantum="8M" />
+        <provides>
+			<service name="File_system"/>
+		</provides>
+        <config fs="cd9660">
+			<policy label="iso_rom" root="/" writeable="no"/>
+		</config>
 		<route>
 			<service name="LOG"> <child name="terminal_log"/> </service>
 			<service name="Block"> <child name="http_blk"/> </service>
-			<any-service> <any-child/> <parent/> </any-service>
+			<any-service> <parent/> <any-child/> </any-service>
 		</route>
+    </start>
+
+    <start name="iso_rom">
+    	<binary name="fs_rom"/>
+        <resource name="RAM" quantum="4M"/>
+        <provides><service name="ROM"/></provides>
+		<route>
+			<service name="LOG"> <child name="terminal_log"/> </service>
+			<service name="File_system"> <child name="rump_fs"/> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+    </start>
+
+	<start name="subinit">
+		<binary name="init"/>
+		<resource name="RAM" quantum="24M"/>
+
+		<configfile name="config"/>
+
+		<parent-provides>
+			<service name="RAM"/>
+			<service name="IRQ"/>
+			<service name="IO_MEM"/>
+			<service name="IO_PORT"/>
+			<service name="PD"/>
+			<service name="RM"/>
+			<service name="CPU"/>
+		</parent-provides>
+
+		<default-route>
+			<service name="LOG"> <child name="terminal_log"/> </service>
+			<service name="ROM"> <child name="iso_rom"/> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</default-route>
 	</start>
-		
+
 </config>
 }
 
@@ -304,8 +344,10 @@ set boot_modules {
 	lwip.lib.so
 	libc_pipe.lib.so
 	tcp_terminal
-	http_rom
-	test-blk-cli
+	http_blk
+	rump_fs
+	rump.lib.so
+	rump_fs.lib.so
 }
 
 append boot_modules $firmware_modules
@@ -319,5 +361,5 @@ append_platform_drv_boot_modules
 
 build_boot_image $boot_modules
 
-append qemu_args " -m 256 "
+append qemu_args " -m 512 "
 run_genode_until forever
