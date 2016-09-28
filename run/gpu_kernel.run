@@ -19,6 +19,7 @@ set build_components {
 	server/terminal_log
 	lib/vfs/jitterentropy
 	server/tcp_terminal
+	app/hello_gpu
 }
 
 lappend_if [use_wifi] build_components drivers/wifi
@@ -175,6 +176,14 @@ append config {
 		</route>
 	</start>
 
+	<start name="hello_gpu">
+		<resource name="RAM" quantum="1M"/>
+		<route>
+			<service name="LOG"> <child name="tcp_terminal_log"/> </service>
+			<any-service> <parent/> </any-service>
+		</route>
+	</start>
+
 </config>
 }
 
@@ -196,6 +205,7 @@ set boot_modules {
 	libc_pipe.lib.so
 	terminal_log
 	tcp_terminal
+	hello_gpu
 }
 
 lappend_if [use_nic]  boot_modules nic_drv
