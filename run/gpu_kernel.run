@@ -176,10 +176,12 @@ append config {
 		</route>
 	</start>
 
-	<start name="hello_gpu">
+	<start name="intel_fb_drv">
+		<binary name="hello_gpu"/>
 		<resource name="RAM" quantum="1M"/>
 		<route>
 			<service name="LOG"> <child name="tcp_terminal_log"/> </service>
+			<service name="Platform"> <child name="platform_drv"/> </service>
 			<any-service> <parent/> </any-service>
 		</route>
 	</start>
