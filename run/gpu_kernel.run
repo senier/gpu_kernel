@@ -4,12 +4,14 @@
 # \date   2016-09-17
 #
 
+proc use_nic { }  {return [have_include "power_on/qemu"]}
+proc use_wifi { } {return [expr ![use_nic]]}
+
 set build_components {
 	core
 	init
 	drivers/input
 	drivers/timer
-	drivers/wifi
 	drivers/rtc
 	server/fs_rom
 	server/ram_fs
@@ -18,6 +20,9 @@ set build_components {
 	lib/vfs/jitterentropy
 	server/tcp_terminal
 }
+
+lappend_if [use_wifi] build_components drivers/wifi
+lappend_if [use_nic]  build_components drivers/nic
 
 source ${genode_dir}/repos/base/run/platform_drv.inc
 append_platform_drv_build_components
@@ -79,8 +84,16 @@ append config {
 		<route>
 			<any-service> <any-child/> <parent/></any-service>
 		</route>
-	</start>
+	</start>}
 
+append_if [use_nic] config {
+	<start name="nic_drv">
+		<resource name="RAM" quantum="4M"/>
+		<provides> <service name="Nic"/> </provides>
+	</start>
+}
+
+append_if [use_wifi] config {
 	<start name="config_fs">
 		<binary name="ram_fs"/>
 		<resource name="RAM" quantum="4M"/>
@@ -90,9 +103,9 @@ append config {
 			<policy label="wifi_drv -> config" root="/" writeable="yes"/>
 			<content>
 				<inline name="wlan_configuration">}
-append config "
+append_if [use_wifi] config "
 					<selected_network ssid=\"$::env(GENODE_WIFI_SSID)\" protection=\"WPA-PSK\" psk=\"$::env(GENODE_WIFI_PSK)\"/>"
-append config {
+append_if [use_wifi] config {
 				</inline>
 				<inline name="wpa_supplicant.conf"></inline>
 			</content>
@@ -111,7 +124,9 @@ append config {
 			<any-service> <parent/> <any-child/> </any-service>
 		</route>
 	</start>
+}
 
+append_if [use_wifi] config {
 	<start name="wifi_drv">
 		<resource name="RAM" quantum="32M"/>
 		<provides> <service name="Nic"/> </provides>
@@ -133,14 +148,15 @@ append config {
 			<service name="ROM"> <if-arg key="label" value="wlan_configuration" /> <child name="config_rom" /> </service>
 			<any-service> <parent/> <any-child /> </any-service>
 		</route>
-	</start>
+	</start>}
 
+append config {
 	<start name="tcp_terminal">
 		<resource name="RAM" quantum="2560K"/>
 		<provides> <service name="Terminal"/> </provides>
 		<config>
 			<policy label="tcp_terminal_log" port="8888"/>
-			<libc stdout="/dev/log" ip_addr="192.168.1.201" gateway="192.168.1.1" netmask="255.255.255.0">
+			<libc stdout="/dev/log">
 				<vfs> <dir name="dev"> <log/> </dir> </vfs>
 			</libc>
 		</config>
@@ -164,10 +180,6 @@ append config {
 
 install_config $config
 
-set firmware_modules {
-	iwlwifi-8000C-16.ucode
-}
-
 # generic modules
 set boot_modules {
 	core
@@ -180,28 +192,32 @@ set boot_modules {
 	vfs_jitterentropy.lib.so
 	ld.lib.so
 	libc.lib.so
-	libcrypto.lib.so
-	libssl.lib.so
-	wpa_driver_nl80211.lib.so
-	wpa_supplicant.lib.so
-	wifi.lib.so
-	wifi_drv
 	lwip.lib.so
 	libc_pipe.lib.so
 	terminal_log
 	tcp_terminal
 }
 
-append boot_modules $firmware_modules
+lappend_if [use_nic]  boot_modules nic_drv
+
+lappend_if [use_wifi] boot_modules libcrypto.lib.so
+lappend_if [use_wifi] boot_modules libssl.lib.so
+lappend_if [use_wifi] boot_modules wpa_driver_nl80211.lib.so
+lappend_if [use_wifi] boot_modules wpa_supplicant.lib.so
+lappend_if [use_wifi] boot_modules wifi.lib.so
+lappend_if [use_wifi] boot_modules wifi_drv
+lappend_if [use_wifi] boot_modules iwlwifi-8000C-16.ucode
 
 # platform-specific modules
-lappend_if [have_spec       linux] boot_modules fb_sdl
-lappend_if [have_spec framebuffer] boot_modules fb_drv
 lappend_if [have_spec         ps2] boot_modules ps2_drv
 
 append_platform_drv_boot_modules
 
 build_boot_image $boot_modules
 
-append qemu_args " -m 512 "
+append qemu_args " -m 512 -net user -redir tcp:5555::8888 "
+
+append_if [have_spec x86]     qemu_args " -net nic,model=e1000 "
+append_if [have_spec lan9118] qemu_args " -net nic,model=lan9118 "
+
 run_genode_until forever
