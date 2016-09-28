@@ -14,7 +14,6 @@ set build_components {
 	server/fs_rom
 	server/ram_fs
 	server/report_rom
-	server/terminal
 	server/terminal_log
 	lib/vfs/jitterentropy
 	server/tcp_terminal
@@ -43,7 +42,6 @@ append config {
 	<default-route>
 		<service name="Nitpicker"> <child name="nitpicker"/> </service>
 		<service name="Timer">     <child name="timer"/> </service>
-		<service name="Terminal">  <child name="terminal"/> </service>
 		<service name="Platform">  <child name="platform_drv"/> </service>
 		<any-service> <parent/> </any-service>
 	</default-route>
