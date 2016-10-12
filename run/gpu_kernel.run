@@ -157,7 +157,7 @@ append config {
 		<provides> <service name="Terminal"/> </provides>
 		<config>
 			<policy label="tcp_terminal_log" port="8888"/>
-			<libc stdout="/dev/log">
+			<libc stdout="/dev/log" ip_addr="192.168.1.201" gateway="192.168.1.1" netmask="255.255.255.0">
 				<vfs> <dir name="dev"> <log/> </dir> </vfs>
 			</libc>
 		</config>
