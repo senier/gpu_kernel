@@ -182,6 +182,7 @@ append config {
 		<route>
 			<service name="LOG"> <child name="tcp_terminal_log"/> </service>
 			<service name="Platform"> <child name="platform_drv"/> </service>
+			<service name="Timer"> <child name="timer"/> </service>
 			<any-service> <parent/> </any-service>
 		</route>
 	</start>

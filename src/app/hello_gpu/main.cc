@@ -4,10 +4,12 @@
 #include <platform_device/client.h>
 #include <io_mem_session/connection.h>
 #include <util/mmio.h>
+#include <timer_session/connection.h>
 
 using namespace Genode;
 
 Genode::size_t Component::stack_size() { return 64*1024; }
+static Timer::Connection timer;
 
 struct GMA : public Mmio
 {
@@ -38,7 +40,12 @@ struct GMA : public Mmio
 		struct Valid_Bit  : Bitfield<0,1> { };
 	};
 
-	struct GPU_TICKS : Register<0x2910, 32> { };
+	struct TIMESTAMP_CTR : Register<0x44070, 32> { };
+
+	struct MGCC : Register<0x9094, 32> { };
+
+	struct DSMB : Register<0x90a0, 32> { };
+	struct GSMB : Register<0x90a4, 32> { };
 
 	struct VGA_CONTROL : Register<0x41000, 32>
 	{
@@ -48,9 +55,14 @@ struct GMA : public Mmio
 	void check()
 	{
 		Genode::log ("FAULT_REG.Valid: ", read<FAULT_REG::Valid_Bit>());
+		Genode::log ("MGCC: ", read<MGCC>());
+		Genode::log ("DSMB: ", read<DSMB>());
+		Genode::log ("GSMB: ", read<GSMB>());
+
 		for (int i = 0; i < 10; i++)
 		{
-			Genode::log ("GPU_TICKS: ", (unsigned long long)read<GPU_TICKS>());
+			Genode::log ("TIMESTAMP_CTR: ", (unsigned long long)read<TIMESTAMP_CTR>());
+			timer.msleep (500);
 		}
 		write<VGA_CONTROL::VGA_Display_Disable>(1);
 	}
@@ -138,12 +150,19 @@ void Component::construct(Genode::Env &env)
 		Genode::log ("GTTMMADR: ", Hex(GTTMMADR));
 
 		uint16_t GGC_0_0_0_PCI = device.config_read(0x50, Platform::Device::ACCESS_16BIT);
-		Genode::log ("GCC_0_0_PCI: ", Hex(GGC_0_0_0_PCI));
+		Genode::log ("GGC_0_0_PCI: ", Hex(GGC_0_0_0_PCI));
+
+		uint32_t BDSM_0_0_0_PCI = device.config_read(0xb0, Platform::Device::ACCESS_32BIT);
+		Genode::log ("BDSM_0_0_PCI: ", Hex(BDSM_0_0_0_PCI));
+
+		uint32_t BGSM_0_0_0_PCI = device.config_read(0xb4, Platform::Device::ACCESS_32BIT);
+		Genode::log ("BGSM_0_0_PCI: ", Hex(BGSM_0_0_0_PCI));
 
 		// Map BAR0
 		Platform::Device::Resource const bar0 = device.resource(0);
 
 		Io_mem_connection io_mem (bar0.base(), bar0.size());
+		io_mem.on_destruction(Genode::Io_mem_connection::KEEP_OPEN);
 		Io_mem_dataspace_capability io_ds = io_mem.dataspace();
 		if (!io_ds.valid())
 			throw -1;	
@@ -154,7 +173,6 @@ void Component::construct(Genode::Env &env)
 
 		// Do something...
 		Genode::log ("Attached BAR0 MMIO to ", Hex((unsigned long long)gma_addr));
-
 		GMA gma ((addr_t) gma_addr);
 		gma.check();
 	
