@@ -4,6 +4,7 @@
 #include <platform_device/client.h>
 #include <io_mem_session/connection.h>
 #include <util/mmio.h>
+#include <util/retry.h>
 #include <timer_session/connection.h>
 
 using namespace Genode;
@@ -127,6 +128,25 @@ static Platform::Device_capability find_gpu_device (Genode::Env &env)
 	return dev_cap;
 }
 
+/**
+ * Allocate DMA memory from the PCI driver
+ */
+static Genode::Ram_dataspace_capability alloc_dma_memory(Genode::Env &env, Genode::size_t size)
+{
+    size_t donate = size;
+
+    return Genode::retry<Platform::Session::Out_of_metadata>(
+        [&] () { return pci.alloc_dma_buffer(size); },
+        [&] () {
+            char quota[32];
+            Genode::snprintf(quota, sizeof(quota), "ram_quota=%zd",
+                             donate);
+            env.parent().upgrade(pci.cap(), quota);
+            donate = donate * 2 > size ? 4096 : donate * 2;
+        });
+}
+
+
 void Component::construct(Genode::Env &env)
 {
 	Io_mem_session_capability io_mem;
@@ -175,7 +195,18 @@ void Component::construct(Genode::Env &env)
 		Genode::log ("Attached BAR0 MMIO to ", Hex((unsigned long long)gma_addr));
 		GMA gma ((addr_t) gma_addr);
 		gma.check();
-	
+
+		// Allocate one page of DMA memory
+		static const unsigned dma_size = 4096;
+		Ram_dataspace_capability dma_ds;
+
+		dma_ds = alloc_dma_memory (env, dma_size);
+		if (!dma_ds.valid())
+			throw -1;
+
+		uint8_t *dma_addr = env.rm().attach(dma_ds);
+		Genode::log ("Attached DMA buffer to ", Hex((unsigned long long)dma_addr));
+
 		pci.release_device (gpu_cap);
 	}
 
