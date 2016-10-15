@@ -1,0 +1,73 @@
+#
+# \brief  Showcases terminal_log server
+# \author Alexander Senier
+# \date   2016-09-17
+#
+
+set build_components {
+	core
+	init
+	test/alloc_dma
+}
+
+source ${genode_dir}/repos/base/run/platform_drv.inc
+append_platform_drv_build_components
+
+build $build_components
+
+create_boot_directory
+
+append config {
+<config>
+	<parent-provides>
+		<service name="ROM"/>
+		<service name="RAM"/>
+		<service name="IRQ"/>
+		<service name="IO_MEM"/>
+		<service name="IO_PORT"/>
+		<service name="PD"/>
+		<service name="RM"/>
+		<service name="CPU"/>
+		<service name="LOG"/>
+	</parent-provides>
+	<default-route>
+		<service name="Platform">  <child name="platform_drv"/> </service>
+		<any-service> <parent/> </any-service>
+	</default-route>
+}
+
+append_platform_drv_config
+
+append config {
+
+	<start name="intel_fb_drv">
+		<binary name="alloc_dma"/>
+		<resource name="RAM" quantum="2M"/>
+		<route>
+			<service name="Platform"> <child name="platform_drv"/> </service>
+			<any-service> <parent/> </any-service>
+		</route>
+	</start>
+
+</config>
+}
+
+install_config $config
+
+# generic modules
+set boot_modules {
+	core
+	init
+	alloc_dma
+}
+
+append_platform_drv_boot_modules
+
+build_boot_image $boot_modules
+
+append qemu_args " -m 512 -net user -redir tcp:5555::8888 "
+
+append_if [have_spec x86]     qemu_args " -net nic,model=e1000 "
+append_if [have_spec lan9118] qemu_args " -net nic,model=lan9118 "
+
+run_genode_until forever
