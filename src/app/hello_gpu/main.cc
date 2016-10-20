@@ -2,6 +2,7 @@
 #include <base/log.h>
 #include <platform_session/connection.h>
 #include <platform_device/client.h>
+#include <dataspace/client.h>
 #include <io_mem_session/connection.h>
 #include <util/mmio.h>
 #include <util/retry.h>
@@ -43,29 +44,9 @@ struct GMA : public Mmio
 
 	struct TIMESTAMP_CTR : Register<0x44070, 32> { };
 
-	struct MGCC : Register<0x9094, 32> { };
-
-	struct DSMB : Register<0x90a0, 32> { };
-	struct GSMB : Register<0x90a4, 32> { };
-
-	struct VGA_CONTROL : Register<0x41000, 32>
-	{
-		struct VGA_Display_Disable : Bitfield< 31,1> { };
-	};
-
 	void check()
 	{
 		Genode::log ("FAULT_REG.Valid: ", read<FAULT_REG::Valid_Bit>());
-		Genode::log ("MGCC: ", read<MGCC>());
-		Genode::log ("DSMB: ", read<DSMB>());
-		Genode::log ("GSMB: ", read<GSMB>());
-
-		for (int i = 0; i < 10; i++)
-		{
-			Genode::log ("TIMESTAMP_CTR: ", (unsigned long long)read<TIMESTAMP_CTR>());
-			timer.msleep (500);
-		}
-		write<VGA_CONTROL::VGA_Display_Disable>(1);
 	}
 };
 
@@ -181,18 +162,28 @@ void Component::construct(Genode::Env &env)
 		// Map BAR0
 		Platform::Device::Resource const bar0 = device.resource(0);
 
-		Io_mem_connection io_mem (bar0.base(), bar0.size());
-		io_mem.on_destruction(Genode::Io_mem_connection::KEEP_OPEN);
-		Io_mem_dataspace_capability io_ds = io_mem.dataspace();
-		if (!io_ds.valid())
+		Io_mem_connection bar0_mem (bar0.base(), bar0.size());
+		bar0_mem.on_destruction(Genode::Io_mem_connection::KEEP_OPEN);
+		Io_mem_dataspace_capability bar0_ds = bar0_mem.dataspace();
+		if (!bar0_ds.valid())
 			throw -1;	
 
-		uint8_t *gma_addr = env.rm().attach(io_ds, bar0.size());
-		Io_mem_session_capability cap = io_mem.cap();
+		uint8_t *gma_addr = env.rm().attach(bar0_ds, bar0.size());
+		Genode::log ("Attached BAR0 MMIO to ", Hex((unsigned long long)gma_addr), " size ", bar0.size());
 
+		// Map BAR2
+		Platform::Device::Resource const bar2 = device.resource(2);
+
+		Io_mem_connection bar2_mem (bar2.base(), bar2.size());
+		bar2_mem.on_destruction(Genode::Io_mem_connection::KEEP_OPEN);
+		Io_mem_dataspace_capability bar2_ds = bar2_mem.dataspace();
+		if (!bar2_ds.valid())
+			throw -1;	
+
+		uint8_t *aperture_addr = env.rm().attach(bar2_ds, bar2.size());
+		Genode::log ("Attached BAR2 (aperture) to ", Hex((unsigned long long)aperture_addr), " size ", bar2.size());
 
 		// Do something...
-		Genode::log ("Attached BAR0 MMIO to ", Hex((unsigned long long)gma_addr));
 		GMA gma ((addr_t) gma_addr);
 		gma.check();
 
@@ -206,6 +197,32 @@ void Component::construct(Genode::Env &env)
 
 		uint8_t *dma_addr = env.rm().attach(dma_ds);
 		Genode::log ("Attached DMA buffer to ", Hex((unsigned long long)dma_addr));
+
+		// Dump start of GTT
+		uint64_t *gtt = (uint64_t *)(gma_addr + 0x800000);
+		for (int i = 0; i < 10; i++)
+		{
+			Genode::log ("GTT[", i, "]: ", Hex((unsigned long long)gtt[i]));
+		}
+
+		// Map start of GTT to physical page
+		uint64_t pte = (Genode::Dataspace_client (dma_ds).phys_addr() | 1);
+		Genode::log ("Writing PTE to GTT[0]: ", Hex((unsigned long long)pte));
+		gtt[0] = pte;
+		Genode::log ("Done");
+
+		// We now should be able to write to dma_addr and read the same values back via aperture.
+		dma_addr[0] = 'd';
+		dma_addr[1] = 'e';
+		dma_addr[2] = 'a';
+		dma_addr[3] = 'd';
+		dma_addr[4] = 'b';
+		dma_addr[5] = 'e';
+		dma_addr[6] = 'a';
+		dma_addr[7] = 'f';
+		dma_addr[8] = '\0';
+
+		Genode::log ("Aperture value: ", Genode::Cstring((char const *)aperture_addr));
 
 		pci.release_device (gpu_cap);
 	}
