@@ -144,6 +144,13 @@ void Component::construct(Genode::Env &env)
 		print_device_info (gpu_cap);
     	Platform::Device_client device(gpu_cap);
 
+		// Assign device to device PD (results in Out_of_metadata exception)
+		// enum {
+		// 	PCI_CMD_REG = 4,
+		// 	PCI_CMD_DMA = 4,
+		// };
+		// device.config_write(PCI_CMD_REG, PCI_CMD_DMA, Platform::Device::ACCESS_16BIT);
+
 		// Print PCI config values
 		uint64_t GTTMMADR_low  = device.config_read(0x10, Platform::Device::ACCESS_32BIT);
 		uint64_t GTTMMADR_high = device.config_read(0x14, Platform::Device::ACCESS_32BIT);
