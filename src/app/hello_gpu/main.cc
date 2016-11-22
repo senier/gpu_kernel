@@ -127,6 +127,21 @@ static Genode::Ram_dataspace_capability alloc_dma_memory(Genode::Env &env, Genod
         });
 }
 
+void config_write(Genode::Env &env, Platform::Device_client *device,
+				  uint8_t op, uint16_t cmd,
+                  Platform::Device::Access_size width)
+{
+	Genode::size_t donate = 4096;
+	Genode::retry<Platform::Device::Quota_exceeded>(
+		[&] () { device->config_write(op, cmd, width); },
+		[&] () {
+			char quota[32];
+			Genode::snprintf(quota, sizeof(quota), "ram_quota=%ld",
+			                 donate);
+			env.parent().upgrade(pci.cap(), quota);
+			donate *= 2;
+		});
+}
 
 void Component::construct(Genode::Env &env)
 {
@@ -144,12 +159,14 @@ void Component::construct(Genode::Env &env)
 		print_device_info (gpu_cap);
     	Platform::Device_client device(gpu_cap);
 
-		// Assign device to device PD (results in Out_of_metadata exception)
-		// enum {
-		// 	PCI_CMD_REG = 4,
-		// 	PCI_CMD_DMA = 4,
-		// };
-		// device.config_write(PCI_CMD_REG, PCI_CMD_DMA, Platform::Device::ACCESS_16BIT);
+		enum {
+			PCI_CMD_REG = 4,
+		};
+
+		// Enable bus master
+		uint16_t cmd = device.config_read(PCI_CMD_REG, Platform::Device::ACCESS_16BIT);
+		cmd |= 0x4;
+		config_write(env, &device, PCI_CMD_REG, cmd, Platform::Device::ACCESS_16BIT);
 
 		// Print PCI config values
 		uint64_t GTTMMADR_low  = device.config_read(0x10, Platform::Device::ACCESS_32BIT);
@@ -225,7 +242,7 @@ void Component::construct(Genode::Env &env)
 		dma_addr[3] = 'd';
 		dma_addr[4] = 'b';
 		dma_addr[5] = 'e';
-		dma_addr[6] = 'a';
+		dma_addr[6] = 'e';
 		dma_addr[7] = 'f';
 		dma_addr[8] = '\0';
 
