@@ -153,7 +153,8 @@ void Component::construct(Genode::Env &env)
 	igd.insert_gtt_mapping (0, gpu_allocator.phys_addr (ring_addr));
 
 	// Single PPGTT for testing
-	Translation_table ppgtt;
+	Translation_table *ppgtt;
+	if (!gpu_allocator.alloc (sizeof (Translation_table), (void **)&ppgtt)) throw -1;
 
 	// Allocate one page of DMA memory as scratch page for later tests
 	uint8_t *scratch_addr;
