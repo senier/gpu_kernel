@@ -1,3 +1,9 @@
+/*
+ * \brief  GPU multiplexer prototype
+ * \author Alexander Senier
+ * \date   2016-12-26
+ */
+
 #include <base/component.h>
 #include <base/log.h>
 #include <platform_session/connection.h>
@@ -20,34 +26,34 @@ static Platform::Connection pci;
 
 static void print_device_info (Platform::Device_capability device_cap)
 {
-    Platform::Device_client device(device_cap);
+	Platform::Device_client device(device_cap);
 
-    unsigned char bus = 0, dev = 0, fun = 0;
-    device.bus_address(&bus, &dev, &fun);
-    unsigned short vendor_id = device.vendor_id();
-    unsigned short device_id = device.device_id();
-    unsigned      class_code = device.class_code() >> 8;
+	unsigned char bus = 0, dev = 0, fun = 0;
+	device.bus_address(&bus, &dev, &fun);
+	unsigned short vendor_id = device.vendor_id();
+	unsigned short device_id = device.device_id();
+	unsigned      class_code = device.class_code() >> 8;
 
-    log(Hex(bus, Hex::OMIT_PREFIX), ":",
-        Hex(dev, Hex::OMIT_PREFIX), ".",
-        Hex(fun, Hex::OMIT_PREFIX), " "
-        "class=", Hex(class_code), " "
-        "vendor=", Hex(vendor_id), " ",
-        "device=", Hex(device_id));
+	log(Hex(bus, Hex::OMIT_PREFIX), ":",
+	    Hex(dev, Hex::OMIT_PREFIX), ".",
+	    Hex(fun, Hex::OMIT_PREFIX), " "
+	    "class=", Hex(class_code), " "
+	    "vendor=", Hex(vendor_id), " ",
+	    "device=", Hex(device_id));
 
-    for (int resource_id = 0; resource_id < 6; resource_id++) {
+	for (int resource_id = 0; resource_id < 6; resource_id++) {
 
-        typedef Platform::Device::Resource Resource;
+		typedef Platform::Device::Resource Resource;
 
-        Resource const resource = device.resource(resource_id);
+		Resource const resource = device.resource(resource_id);
 
-        if (resource.type() != Resource::INVALID)
-            log("  Resource ", resource_id, " "
-                "(", (resource.type() == Resource::IO ? "I/O" : "MEM"), "): "
-                "base=", Genode::Hex(resource.base()), " "
-                "size=", Genode::Hex(resource.size()), " ",
-                (resource.prefetchable() ? "prefetchable" : ""));
-    }
+		if (resource.type() != Resource::INVALID)
+			log("  Resource ", resource_id, " "
+			    "(", (resource.type() == Resource::IO ? "I/O" : "MEM"), "): "
+			    "base=", Genode::Hex(resource.base()), " "
+			    "size=", Genode::Hex(resource.size()), " ",
+			    (resource.prefetchable() ? "prefetchable" : ""));
+	}
 }
 
 static Platform::Device_capability find_gpu_device (Genode::Env &env)
@@ -59,8 +65,8 @@ static Platform::Device_capability find_gpu_device (Genode::Env &env)
 
 	while (dev_cap.valid())
 	{
-    	Platform::Device_client device(dev_cap);
-    	device.bus_address(&bus, &dev, &fun);
+		Platform::Device_client device(dev_cap);
+		device.bus_address(&bus, &dev, &fun);
 
 		if (bus == 0 && dev == 2 && fun == 0)
 		{
@@ -76,7 +82,7 @@ static Platform::Device_capability find_gpu_device (Genode::Env &env)
 }
 
 void config_write(Genode::Env &env, Platform::Device_client *device,
-				  uint8_t op, uint16_t cmd,
+                  uint8_t op, uint16_t cmd,
                   Platform::Device::Access_size width)
 {
 	Genode::size_t donate = 4096;
@@ -110,7 +116,7 @@ void Component::construct(Genode::Env &env)
 
 	Genode::log ("Found GPU device");
 	print_device_info (gpu_cap);
-    Platform::Device_client device(gpu_cap);
+	Platform::Device_client device(gpu_cap);
 
 	// Enable bus master
 	uint16_t cmd = device.config_read(PCI_CMD_REG, Platform::Device::ACCESS_16BIT);
@@ -126,7 +132,6 @@ void Component::construct(Genode::Env &env)
 	if (!bar0_ds.valid())
 		throw -1;	
 
-#if 0
 	// Map BAR2
 	Platform::Device::Resource const bar2 = device.resource(2);
 
@@ -137,7 +142,6 @@ void Component::construct(Genode::Env &env)
 		throw -1;	
 
 	uint8_t *aperture_addr = env.rm().attach(bar2_ds, bar2.size());
-#endif
 
 	uint8_t *igd_addr = env.rm().attach(bar0_ds, bar0.size());
 	IGD igd (env, (addr_t) igd_addr);
@@ -173,16 +177,16 @@ void Component::construct(Genode::Env &env)
 	}
 
 	const Page_flags scratch_flags = Page_flags
-		{ .writeable  = true,
-		  .executable = true,
-		  .privileged = true,
-		  .global     = false,
-		  .device     = false,
-	      .cacheable  = UNCACHED };
+	                 { .writeable  = true,
+		                 .executable = true,
+		                 .privileged = true,
+		                 .global     = false,
+		                 .device     = false,
+		                 .cacheable  = UNCACHED };
 
 	addr_t va = 0xdeadbeef000;
 	Genode::log ("Mapping va=", Genode::Hex(va), " to pa=", Genode::Hex((addr_t)scratch_pa),
-				 " (base of scratch=", Genode::Hex((addr_t)scratch_addr), ")");
+	             " (base of scratch=", Genode::Hex((addr_t)scratch_addr), ")");
 	ppgtt->insert_translation (va, (addr_t)scratch_pa, 4096, scratch_flags, &gpu_allocator);
 
 	pci.release_device (gpu_cap);

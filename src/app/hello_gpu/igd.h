@@ -9,7 +9,7 @@
 
 #include <util/mmio.h>
 
-namespace Genode { class IGD; };
+namespace Genode { class IGD; }
 
 class Genode::IGD : public Mmio
 {
@@ -92,50 +92,49 @@ class Genode::IGD : public Mmio
 
 	public:
 
-		IGD (Genode::Env &env, addr_t const base) : Mmio(base)
+		IGD(Genode::Env &env, addr_t const base) : Mmio(base)
 		{
 			_gtt = (uint64_t *)(base + 0x800000);
 
 			typedef RING_BUFFER_CTL_RCSUNIT::Automatic_Report_Head_Pointer ARHP;
 
-			Genode::log ("TSC: ", Hex (read<TIMESTAMP_CTR>()));
+			Genode::log("TSC: ", Hex (read<TIMESTAMP_CTR>()));
 
-			Genode::log ("GFX_MODE");
-			Genode::log ("   Execlist_Enable:           ", Hex (read<GFX_MODE::Execlist_Enable>()));
-			Genode::log ("   PPGTT_Enable:              ", Hex (read<GFX_MODE::PPGTT_Enable>()));
-			Genode::log ("   Virtual_Addressing_Enable: ", Hex (read<GFX_MODE::Virtual_Addressing_Enable>()));
-			Genode::log ("   Privilege_Check_Disable:   ", Hex (read<GFX_MODE::Privilege_Check_Disable>()));
+			Genode::log("GFX_MODE");
+			Genode::log("   Execlist_Enable:           ", Hex (read<GFX_MODE::Execlist_Enable>()));
+			Genode::log("   PPGTT_Enable:              ", Hex (read<GFX_MODE::PPGTT_Enable>()));
+			Genode::log("   Virtual_Addressing_Enable: ", Hex (read<GFX_MODE::Virtual_Addressing_Enable>()));
+			Genode::log("   Privilege_Check_Disable:   ", Hex (read<GFX_MODE::Privilege_Check_Disable>()));
 
 			// Set ring buffer to start of GTT
-			Genode::log ("Setting up ring buffer (1)");
-			Genode::log ("   Starting_Address:   ", Hex (read<RING_BUFFER_START_RCSUNIT::Starting_Address>()));
-			Genode::log ("   Ring_Buffer_Enable: ", Hex (read<RING_BUFFER_CTL_RCSUNIT::Ring_Buffer_Enable>()));
-			Genode::log ("   Buffer_Length:      ", Hex (read<RING_BUFFER_CTL_RCSUNIT::Buffer_Length>()));
+			Genode::log("Setting up ring buffer (1)");
+			Genode::log("   Starting_Address:   ", Hex (read<RING_BUFFER_START_RCSUNIT::Starting_Address>()));
+			Genode::log("   Ring_Buffer_Enable: ", Hex (read<RING_BUFFER_CTL_RCSUNIT::Ring_Buffer_Enable>()));
+			Genode::log("   Buffer_Length:      ", Hex (read<RING_BUFFER_CTL_RCSUNIT::Buffer_Length>()));
 
 			write<RING_BUFFER_START_RCSUNIT::Starting_Address>(4);
 			write<RING_BUFFER_HEAD_RCSUNIT::Head_Offset>(44);
 			write<RING_BUFFER_TAIL_RCSUNIT::Tail_Offset>(44);
-			write<RING_BUFFER_CTL_RCSUNIT::Buffer_Length> (0);
-			write<RING_BUFFER_CTL_RCSUNIT::Automatic_Report_Head_Pointer> (ARHP::MI_AUTOREPORT_OFF);
+			write<RING_BUFFER_CTL_RCSUNIT::Buffer_Length>(0);
+			write<RING_BUFFER_CTL_RCSUNIT::Automatic_Report_Head_Pointer>(ARHP::MI_AUTOREPORT_OFF);
 			write<RING_BUFFER_CTL_RCSUNIT::Ring_Buffer_Enable>(1);
-			
-			Genode::log ("Setting up ring buffer (2)");
-			Genode::log ("   Starting_Address:   ", Hex (read<RING_BUFFER_START_RCSUNIT::Starting_Address>()));
-			Genode::log ("   Ring_Buffer_Enable: ", Hex (read<RING_BUFFER_CTL_RCSUNIT::Ring_Buffer_Enable>()));
-			Genode::log ("   Buffer_Length:      ", Hex (read<RING_BUFFER_CTL_RCSUNIT::Buffer_Length>()));
+
+			Genode::log("Setting up ring buffer (2)");
+			Genode::log("   Starting_Address:   ", Hex (read<RING_BUFFER_START_RCSUNIT::Starting_Address>()));
+			Genode::log("   Ring_Buffer_Enable: ", Hex (read<RING_BUFFER_CTL_RCSUNIT::Ring_Buffer_Enable>()));
+			Genode::log("   Buffer_Length:      ", Hex (read<RING_BUFFER_CTL_RCSUNIT::Buffer_Length>()));
 
 			unsigned head_pointer = read<ACTHD_RCSUNIT::Head_Pointer>();
-			Genode::log ("ACTHD: ", Hex (head_pointer, Hex::OMIT_PREFIX));
-			Genode::log ("TSC: ", Hex (read<TIMESTAMP_CTR>()));
+			Genode::log("ACTHD: ", Hex (head_pointer, Hex::OMIT_PREFIX));
+			Genode::log("TSC: ", Hex (read<TIMESTAMP_CTR>()));
 
-			Genode::log ("Start of GTT");
-			for (int i = 0; i < 10; i++)
-			{
-				Genode::log ("   ", i, ": ", Hex((unsigned long long)_gtt[i]));
+			Genode::log("Start of GTT");
+			for (int i = 0; i < 10; i++) {
+				Genode::log("   ", i, ": ", Hex((unsigned long long)_gtt[i]));
 			}
 		}
 
-		void insert_gtt_mapping (int offset, void *pa)
+		void insert_gtt_mapping(int offset, void *pa)
 		{
 			this->_gtt[offset] = ((addr_t)pa | 1);
 
