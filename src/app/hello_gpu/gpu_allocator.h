@@ -44,26 +44,24 @@ class Genode::Address_map
 
 	public:
 
-		bool add (Ram_dataspace_capability ds, void *virt)
+		Address_map()
 		{
-			int index;
-			bool found = false;
+			memset(&_map, 0, sizeof(_map));
+		}
 
-			for (unsigned int i = 0; i < ELEMENTS; i++)
+		bool add (Ram_dataspace_capability ds, void *va)
+		{
+			unsigned int index = 0;
+
+			while (index++ < ELEMENTS)
 			{
-				if (_map[i].valid)
+				if (!_map[index].valid)
 				{
-					index = i;
-					found = true;
-					break;
+					_map[index] = Address_map_element (index, ds, va);
+					return true;
 				}
-			}
-			if (!found)
-			{
-				return false;
-			}
-			_map[index] = Address_map_element (index, ds, virt);
-			return true;
+			};
+			return false;
 		}
 
 		struct Address_map_element *remove (void *va)
@@ -171,9 +169,7 @@ class Genode::GPU_allocator : public Genode::Translation_table_allocator
 				return false;
 
 			*out_addr = _env.rm().attach (ds);
-			_map.add (ds, *out_addr);
-
-			return true;
+			return _map.add (ds, *out_addr);
 		}
 };
 
