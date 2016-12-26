@@ -158,10 +158,20 @@ void Component::construct(Genode::Env &env)
 
 	// Allocate one page of DMA memory as scratch page for later tests
 	uint8_t *scratch_addr;
-	if (!gpu_allocator.alloc (4096, (void **)&scratch_addr)) throw -1;
+	if (!gpu_allocator.alloc (4096, (void **)&scratch_addr))
+	{
+		Genode::log ("Allocating scratch page failed");
+		throw -1;
+	}
 
 	// Map scratch page into PPGTT address space
 	void *scratch_pa = gpu_allocator.phys_addr (scratch_addr);
+	if (!scratch_pa)
+	{
+		Genode::log ("Error getting scratch page physical address");
+		throw -1;
+	}
+
 	const Page_flags scratch_flags = Page_flags
 		{ .writeable  = true,
 		  .executable = true,
@@ -169,7 +179,11 @@ void Component::construct(Genode::Env &env)
 		  .global     = false,
 		  .device     = false,
 	      .cacheable  = UNCACHED };
-	ppgtt.insert_translation (0xdeadbeef000, (addr_t)scratch_pa, 4096, scratch_flags, &gpu_allocator);
+
+	addr_t va = 0xdeadbeef000;
+	Genode::log ("Mapping va=", Genode::Hex(va), " to pa=", Genode::Hex((addr_t)scratch_pa),
+				 " (base of scratch=", Genode::Hex((addr_t)scratch_addr), ")");
+	ppgtt->insert_translation (va, (addr_t)scratch_pa, 4096, scratch_flags, &gpu_allocator);
 
 	pci.release_device (gpu_cap);
 	Genode::log ("Done");
