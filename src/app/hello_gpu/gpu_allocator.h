@@ -78,7 +78,10 @@ class Genode::Address_map
 		{
 			for (unsigned int i = 0; i < ELEMENTS; i++)
 			{
-				if (_map[i].virt == va) return &_map[i];
+				if (_map[i].virt == va)
+				{
+					return &_map[i];
+				}
 			}
 			return nullptr;
 		}
@@ -87,7 +90,10 @@ class Genode::Address_map
 		{
 			for (unsigned int i = 0; i < ELEMENTS; i++)
 			{
-				if (_map[i].phys == pa) return &_map[i];
+				if (_map[i].phys == pa)
+				{
+					return &_map[i];
+				}
 			}
 			return nullptr;
 		}
