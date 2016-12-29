@@ -17,6 +17,7 @@
 
 #include <igd.h>
 #include <gpu_allocator.h>
+#include <context.h>
 
 using namespace Genode;
 
@@ -151,10 +152,12 @@ void Component::construct(Genode::Env &env)
 
 	// Allocate one page of DMA memory for ring buffer
 	void *ring_addr;
-	if (!gpu_allocator.alloc (4096, &ring_addr)) throw -1;
+	size_t ring_len = 4096;
+	if (!gpu_allocator.alloc (ring_len, &ring_addr)) throw -1;
 
 	// Map start of GTT to physical page
-	igd.insert_gtt_mapping (0, gpu_allocator.phys_addr (ring_addr));
+	void *ring_phys = gpu_allocator.phys_addr (ring_addr);
+	igd.insert_gtt_mapping (0, ring_phys);
 
 	// Single PPGTT for testing
 	Translation_table *ppgtt;
@@ -188,6 +191,11 @@ void Component::construct(Genode::Env &env)
 	Genode::log ("Mapping va=", Genode::Hex(va), " to pa=", Genode::Hex((addr_t)scratch_pa),
 	             " (base of scratch=", Genode::Hex((addr_t)scratch_addr), ")");
 	ppgtt->insert_translation (va, (addr_t)scratch_pa, 4096, scratch_flags, &gpu_allocator);
+
+	Genode::IGD_base_context<3, 0x12000> *ctx = new (gpu_allocator) Genode::IGD_base_context<3, 0x12000>((addr_t)ring_phys, ring_len);
+	Genode::uint32_t *cb = (Genode::uint32_t *)ctx;
+	Genode::log ("Context[0x01]: ", Genode::Hex (cb[0xc01]));
+	Genode::log ("Context[0x21]: ", Genode::Hex (cb[0xc21]));
 
 	pci.release_device (gpu_cap);
 	Genode::log ("Done");
