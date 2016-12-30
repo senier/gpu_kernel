@@ -24,7 +24,20 @@ class Genode::IGD_base_context
 {
 	private:
 
-		enum { Mi_noop = 0 };
+		enum { Mi_noop = 0UL };
+
+		/* Register we don't program or read. */
+		struct Opaque_register : Common_register
+		{
+			struct Data : Bitfield<0,31> { };
+		};
+
+		static constexpr typename
+		Opaque_register::access_t DEFAULT_OPAQUE_REG(unsigned int offset)
+		{
+			return Common_register::Mmio_offset::bits(RING_BASE + offset) |
+			       Opaque_register::Data::bits(0);
+		};
 
 		struct Context_control : Common_register
 		{
@@ -78,32 +91,30 @@ class Genode::IGD_base_context
 			struct Ring_buffer_enable	: Bitfield< 0,  1> { };
 		};
 
-		struct Ring_buffer_chr_udw : Common_register
+		struct Bb_per_ctx_ptr : Common_register
 		{
-			struct Reserved_mbz	: Bitfield<16, 16> { };
-			struct Head_pointer_udw : Bitfield< 0, 16> { };
-		};
-
-		struct Ring_buffer_chr : Common_register
-		{
-			struct Head_pointer	: Bitfield< 2, 30> { };
-			struct Reserved_mbz	: Bitfield< 1,  1> { };
+			struct Address		: Bitfield<12, 20> { };
+			struct Reserved_mbz	: Bitfield< 2, 10> { };
+			struct Enable		: Bitfield< 1,  1> { };
 			struct Valid		: Bitfield< 0,  1> { };
 		};
 
-		struct Batch_buffer_state : Common_register
+		struct Indirect_ctx_ptr : Common_register
 		{
-			struct Reserved_mbz_1           : Bitfield< 7, 25> { };
-			struct Resource_streamer_enable : Bitfield< 7,  1> { };
-			struct Reserved_mbz_2           : Bitfield< 6,  1> { };
-			struct Address_space_indicator  : Bitfield< 5,  1>
-			{
-				enum {
-					GGTT  = 0,
-					PPGTT = 1
-				};
-			};
-			struct Reserved_mbz_3           : Bitfield< 0,  4> { };
+			struct Address	: Bitfield< 6, 26> { };
+			struct Size	: Bitfield< 0,  6> { };
+		};
+
+		struct Indirect_ctx_offset : Common_register
+		{
+			struct Reserved_mbz_1 : Bitfield<16, 16> { };
+			struct Offset         : Bitfield< 6, 10> { };
+			struct Reserved_mbz_2 : Bitfield< 0,  6> { };
+		};
+
+		struct Ctx_timestamp : Common_register
+		{
+			struct Value : Bitfield<0, 32> { };
 		};
 
 		Genode::uint8_t				_context_pages[NUM_CONTEXT_PAGES*4096];
@@ -114,28 +125,28 @@ class Genode::IGD_base_context
 		typename Ring_buffer_tail::access_t	_ring_tail_pointer_register;
 		typename Ring_buffer_start::access_t	_ring_buffer_start;
 		typename Ring_buffer_control::access_t	_ring_buffer_control;
-		typename Ring_buffer_chr_udw::access_t	_batch_buffer_current_head_register_udw;
-		typename Ring_buffer_chr::access_t	_batch_buffer_current_head_register;
-		typename Batch_buffer_state::access_t	_batch_buffer_state_register;
-		typename Ring_buffer_chr_udw::access_t	_second_bb_addr_udw;
-		typename Ring_buffer_chr::access_t	_second_bb_addr;
-		Genode::uint64_t			_second_bb_state;
-		Genode::uint64_t			_bb_per_ctx_ptr;
-		Genode::uint64_t			_vcs_indirect_ctx;
-		Genode::uint64_t			_vcs_indirect_ctx_offset;
+		typename Opaque_register::access_t	_batch_buffer_current_head_register_udw;
+		typename Opaque_register::access_t	_batch_buffer_current_head_register;
+		typename Opaque_register::access_t	_batch_buffer_state_register;
+		typename Opaque_register::access_t	_second_bb_addr_udw;
+		typename Opaque_register::access_t	_second_bb_addr;
+		typename Opaque_register::access_t	_second_bb_state;
+		typename Bb_per_ctx_ptr::access_t	_bb_per_ctx_ptr;
+		typename Indirect_ctx_ptr::access_t    	_vcs_indirect_ctx;
+		typename Indirect_ctx_offset::access_t	_vcs_indirect_ctx_offset;
 		Genode::uint32_t			_noop_01;
 		Genode::uint32_t			_noop_02;
 		Genode::uint32_t			_noop_03;
 		Genode::uint32_t			_load_register_immediate_header_2;
-		Genode::uint64_t			_ctx_timestamp;
-		Genode::uint64_t			_pdp3_udw;
-		Genode::uint64_t			_pdp3_ldw;
-		Genode::uint64_t			_pdp2_udw;
-		Genode::uint64_t			_pdp2_ldw;
-		Genode::uint64_t			_pdp1_udw;
-		Genode::uint64_t			_pdp1_ldw;
-		Genode::uint64_t			_pdp0_udw;
-		Genode::uint64_t			_pdp0_ldw;
+		typename Ctx_timestamp::access_t	_ctx_timestamp;
+		typename Opaque_register::access_t	_pdp3_udw;
+		typename Opaque_register::access_t	_pdp3_ldw;
+		typename Opaque_register::access_t	_pdp2_udw;
+		typename Opaque_register::access_t	_pdp2_ldw;
+		typename Opaque_register::access_t	_pdp1_udw;
+		typename Opaque_register::access_t	_pdp1_ldw;
+		typename Opaque_register::access_t	_pdp0_udw;
+		typename Opaque_register::access_t	_pdp0_ldw;
 		Genode::uint32_t			_noop_04;
 		Genode::uint32_t			_noop_05;
 		Genode::uint32_t			_noop_06;
@@ -150,66 +161,83 @@ class Genode::IGD_base_context
 		Genode::uint32_t			_noop_15;
 
 	public:
-		IGD_base_context(addr_t ring_address, size_t ring_length)
+		IGD_base_context(addr_t ring_address,
+				 size_t ring_length,
+				 addr_t bb_per_ctx_addr,
+				 addr_t ind_cs_ctx_addr,
+				 size_t ind_cs_ctx_size,
+				 size_t ind_cs_ctx_off)
 		:
 			_noop_00(Mi_noop),
 
 			_load_register_immediate_header_1(0x1100101b),
 
-			_context_control(Common_register::Mmio_offset::bits (RING_BASE + 0x244) |
-					 Context_control::Engine_context_restore_inhibit::bits (1) |
+			_context_control(Common_register::Mmio_offset::bits(RING_BASE + 0x244) |
+					 Context_control::Engine_context_restore_inhibit::bits(1) |
 					 Context_control::Rs_context_enable::bits(1) |
-					 Context_control::Inhibit_syn_context_switch::bits (1)),
+					 Context_control::Inhibit_syn_context_switch::bits(1)),
 
-			_ring_head_pointer_register(Common_register::Mmio_offset::bits (RING_BASE + 0x34) |
-						    Ring_buffer_head::Wrap_count::bits (0) |
-						    Ring_buffer_head::Head_offset::bits (0) |
-						    Ring_buffer_head::Reserved_mbz::bits (0)),
+			_ring_head_pointer_register(Common_register::Mmio_offset::bits(RING_BASE + 0x34) |
+						    Ring_buffer_head::Wrap_count::bits(0) |
+						    Ring_buffer_head::Head_offset::bits(0) |
+						    Ring_buffer_head::Reserved_mbz::bits(0)),
 
-			_ring_tail_pointer_register(Common_register::Mmio_offset::bits (RING_BASE + 0x30) |
-						    Ring_buffer_tail::Reserved_mbz_1::bits (0) |
-						    Ring_buffer_tail::Tail_offset::bits (0) |
-						    Ring_buffer_tail::Reserved_mbz_2::bits (0)),
+			_ring_tail_pointer_register(Common_register::Mmio_offset::bits(RING_BASE + 0x30) |
+						    Ring_buffer_tail::Reserved_mbz_1::bits(0) |
+						    Ring_buffer_tail::Tail_offset::bits(0) |
+						    Ring_buffer_tail::Reserved_mbz_2::bits(0)),
 
-			_ring_buffer_start(Common_register::Mmio_offset::bits (RING_BASE + 0x38) |
-					   Ring_buffer_start::Starting_address::bits (ring_address) |
-				           Ring_buffer_start::Reserved_mbz::bits (0)),
+			_ring_buffer_start(Common_register::Mmio_offset::bits(RING_BASE + 0x38) |
+					   Ring_buffer_start::Starting_address::bits(ring_address) |
+				           Ring_buffer_start::Reserved_mbz::bits(0)),
 
-			_ring_buffer_control(Common_register::Mmio_offset::bits (RING_BASE + 0x3c) |
-					     Ring_buffer_control::Reserved_mbz_1::bits (0) |
-					     Ring_buffer_control::Buffer_length::bits (ring_length) |
-					     Ring_buffer_control::RBwait::bits (0) |
-					     Ring_buffer_control::Semaphore_wait::bits (0) |
-					     Ring_buffer_control::Reserved_mbz_2::bits (0) |
-					     Ring_buffer_control::Arhp::bits (Ring_buffer_control::Arhp::MI_AUTOREPORT_OFF) |
-					     Ring_buffer_control::Ring_buffer_enable::bits (1)),
+			_ring_buffer_control(Common_register::Mmio_offset::bits(RING_BASE + 0x3c) |
+					     Ring_buffer_control::Reserved_mbz_1::bits(0) |
+					     Ring_buffer_control::Buffer_length::bits(ring_length) |
+					     Ring_buffer_control::RBwait::bits(0) |
+					     Ring_buffer_control::Semaphore_wait::bits(0) |
+					     Ring_buffer_control::Reserved_mbz_2::bits(0) |
+					     Ring_buffer_control::Arhp::bits(Ring_buffer_control::Arhp::MI_AUTOREPORT_OFF) |
+					     Ring_buffer_control::Ring_buffer_enable::bits(1)),
 
-			_batch_buffer_current_head_register_udw(Common_register::Mmio_offset::bits (RING_BASE + 0x168) |
-								Ring_buffer_chr_udw::Reserved_mbz::bits (0) |
-								Ring_buffer_chr_udw::Head_pointer_udw::bits (0)),
+			_batch_buffer_current_head_register_udw(DEFAULT_OPAQUE_REG(0x168)),
+			_batch_buffer_current_head_register(DEFAULT_OPAQUE_REG(0x140)),
+			_batch_buffer_state_register(DEFAULT_OPAQUE_REG(0x110)),
+			_second_bb_addr_udw(DEFAULT_OPAQUE_REG(0x11c)),
+			_second_bb_addr(DEFAULT_OPAQUE_REG(0x114)),
+			_second_bb_state(DEFAULT_OPAQUE_REG(0x118)),
 
-			_batch_buffer_current_head_register(Common_register::Mmio_offset::bits (RING_BASE + 0x140) |
-							    Ring_buffer_chr::Head_pointer::bits (0) |
-							    Ring_buffer_chr::Reserved_mbz::bits (0) |
-							    Ring_buffer_chr::Valid::bits (1)),
+			_bb_per_ctx_ptr(Common_register::Mmio_offset::bits(RING_BASE + 0x1c0) |
+					Bb_per_ctx_ptr::Address::bits(bb_per_ctx_addr) |
+					Bb_per_ctx_ptr::Reserved_mbz::bits(0) |
+					Bb_per_ctx_ptr::Enable::bits(0) |
+					Bb_per_ctx_ptr::Valid::bits(bb_per_ctx_addr ? 1 : 0)),
 
-			_batch_buffer_state_register(Common_register::Mmio_offset::bits (RING_BASE + 0x110) |
-						     Batch_buffer_state::Reserved_mbz_1::bits (0) |
-						     Batch_buffer_state::Resource_streamer_enable::bits (0) |
-						     Batch_buffer_state::Reserved_mbz_2::bits (0) |
-						     Batch_buffer_state::Address_space_indicator::bits (0)),
+			_vcs_indirect_ctx(Common_register::Mmio_offset::bits(RING_BASE + 0x1c4) |
+					  Indirect_ctx_ptr::Address::bits(ind_cs_ctx_addr) |
+					  Indirect_ctx_ptr::Size::bits(ind_cs_ctx_size)),
 
-			_second_bb_addr_udw(Common_register::Mmio_offset::bits (RING_BASE + 0x11c) |
-					    Ring_buffer_chr_udw::Reserved_mbz::bits (0) |
-					    Ring_buffer_chr_udw::Head_pointer_udw::bits (0)),
-
-			_second_bb_addr(Common_register::Mmio_offset::bits (RING_BASE + 0x114) |
-					Ring_buffer_chr::Head_pointer::bits (0) |
-					Ring_buffer_chr::Reserved_mbz::bits (0) |
-					Ring_buffer_chr::Valid::bits (1)),
+			_vcs_indirect_ctx_offset(Common_register::Mmio_offset::bits(RING_BASE + 0x1c8) |
+					  	 Indirect_ctx_offset::Reserved_mbz_1::bits(0) |
+					  	 Indirect_ctx_offset::Offset::bits(ind_cs_ctx_off) |
+					  	 Indirect_ctx_offset::Reserved_mbz_2::bits(0)),
 
 			_noop_01(Mi_noop), _noop_02(Mi_noop), _noop_03(Mi_noop),
+
 			_load_register_immediate_header_2(0x11001011),
+
+			_ctx_timestamp(Common_register::Mmio_offset::bits(RING_BASE + 0x3a8) |
+					Ctx_timestamp::Value::bits(0)),
+
+			_pdp3_udw(DEFAULT_OPAQUE_REG(0x28c)),
+			_pdp3_ldw(DEFAULT_OPAQUE_REG(0x288)),
+			_pdp2_udw(DEFAULT_OPAQUE_REG(0x284)),
+			_pdp2_ldw(DEFAULT_OPAQUE_REG(0x280)),
+			_pdp1_udw(DEFAULT_OPAQUE_REG(0x27c)),
+			_pdp1_ldw(DEFAULT_OPAQUE_REG(0x278)),
+			_pdp0_udw(DEFAULT_OPAQUE_REG(0x274)),
+			_pdp0_ldw(DEFAULT_OPAQUE_REG(0x270)),
+
 			_noop_04(Mi_noop), _noop_05(Mi_noop), _noop_06(Mi_noop),
 			_noop_07(Mi_noop), _noop_08(Mi_noop), _noop_09(Mi_noop),
 			_noop_10(Mi_noop), _noop_11(Mi_noop), _noop_12(Mi_noop),
