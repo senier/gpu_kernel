@@ -353,10 +353,10 @@ class Genode::Rcs_context
 		Rcs_context (addr_t ring_address,
 			     size_t ring_length,
 			     Genode::uint64_t pdp0_addr,
-			     addr_t bb_per_ctx_addr,
-			     addr_t ind_cs_ctx_addr,
-			     size_t ind_cs_ctx_size,
-			     size_t ind_cs_ctx_off)
+			     addr_t bb_per_ctx_addr = 0,
+			     addr_t ind_cs_ctx_addr = 0,
+			     size_t ind_cs_ctx_size = 0,
+			     size_t ind_cs_ctx_off  = 0)
 		:
 			_ring_context (Ring_context<RCS_RING_BASE> (ring_address,
 								    ring_length,
