@@ -117,6 +117,18 @@ class Genode::IGD_base_context
 			struct Value : Bitfield<0, 32> { };
 		};
 
+		struct Pdp_descriptor : Common_register
+		{
+			struct Value : Bitfield<0,31> { };
+		};
+
+		static constexpr typename
+		Pdp_descriptor::access_t PDP_VALUE(unsigned int offset, Genode::uint32_t value)
+		{
+			return Common_register::Mmio_offset::bits(RING_BASE + offset) |
+			       Pdp_descriptor::Value::bits(value);
+		};
+
 		Genode::uint8_t				_context_pages[NUM_CONTEXT_PAGES*4096];
 		Genode::uint32_t			_noop_00;
 		Genode::uint32_t			_load_register_immediate_header_1;
@@ -145,8 +157,8 @@ class Genode::IGD_base_context
 		typename Opaque_register::access_t	_pdp2_ldw;
 		typename Opaque_register::access_t	_pdp1_udw;
 		typename Opaque_register::access_t	_pdp1_ldw;
-		typename Opaque_register::access_t	_pdp0_udw;
-		typename Opaque_register::access_t	_pdp0_ldw;
+		typename Pdp_descriptor::access_t	_pdp0_udw;
+		typename Pdp_descriptor::access_t	_pdp0_ldw;
 		Genode::uint32_t			_noop_04;
 		Genode::uint32_t			_noop_05;
 		Genode::uint32_t			_noop_06;
@@ -163,6 +175,7 @@ class Genode::IGD_base_context
 	public:
 		IGD_base_context(addr_t ring_address,
 				 size_t ring_length,
+				 Genode::uint64_t pdp0_addr,
 				 addr_t bb_per_ctx_addr,
 				 addr_t ind_cs_ctx_addr,
 				 size_t ind_cs_ctx_size,
@@ -235,8 +248,9 @@ class Genode::IGD_base_context
 			_pdp2_ldw(DEFAULT_OPAQUE_REG(0x280)),
 			_pdp1_udw(DEFAULT_OPAQUE_REG(0x27c)),
 			_pdp1_ldw(DEFAULT_OPAQUE_REG(0x278)),
-			_pdp0_udw(DEFAULT_OPAQUE_REG(0x274)),
-			_pdp0_ldw(DEFAULT_OPAQUE_REG(0x270)),
+
+			_pdp0_udw(PDP_VALUE(0x274, (addr_t) (pdp0_addr >> 32))),
+			_pdp0_ldw(PDP_VALUE(0x270, (addr_t) (pdp0_addr & 0xffffffff))),
 
 			_noop_04(Mi_noop), _noop_05(Mi_noop), _noop_06(Mi_noop),
 			_noop_07(Mi_noop), _noop_08(Mi_noop), _noop_09(Mi_noop),

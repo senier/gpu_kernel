@@ -193,7 +193,8 @@ void Component::construct(Genode::Env &env)
 	ppgtt->insert_translation (va, (addr_t)scratch_pa, 4096, scratch_flags, &gpu_allocator);
 
 	using Context = Genode::IGD_base_context<3, 0x12000>;
-	Context *ctx = new (gpu_allocator) Context ((addr_t)ring_phys, ring_len, 0, 0, 0, 0);
+	addr_t ppgtt_phys = (addr_t)gpu_allocator.phys_addr (ppgtt);
+	Context *ctx = new (gpu_allocator) Context ((addr_t)ring_phys, ring_len, ppgtt_phys, 0, 0, 0, 0);
 	Genode::uint32_t *cb = (Genode::uint32_t *)ctx;
 	Genode::log ("Context[0x01]: ", Genode::Hex (cb[0xc01]));
 	Genode::log ("Context[0x21]: ", Genode::Hex (cb[0xc21]));
