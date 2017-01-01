@@ -339,7 +339,7 @@ class Genode::Rcs_context
 		enum { RCS_RING_BASE = 0x2000, TOTAL_PAGES = 22 };
 
 		static const size_t ENGINE_CONTEXT_SIZE =
-			(((TOTAL_PAGES - GUC_SHARED_PAGES - 2) * 4096) -
+			(((TOTAL_PAGES - 2) * 4096) -
 			(sizeof (Ring_context<RCS_RING_BASE>) +
 			 sizeof (PPGTT_context<RCS_RING_BASE>) +
 			 sizeof (Rcs_misc_context)));
