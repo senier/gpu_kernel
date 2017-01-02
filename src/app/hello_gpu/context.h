@@ -276,7 +276,7 @@ class Genode::PPGTT_context
 			_load_register_immediate_header(0x11001011),
 
 			_ctx_timestamp(Common_register::Mmio_offset::bits(RING_BASE + 0x3a8) |
-					Ctx_timestamp::Value::bits(0)),
+				       Ctx_timestamp::Value::bits(0)),
 
 			_pdp3_udw(DEFAULT_OPAQUE_REG(RING_BASE, 0x28c)),
 			_pdp3_ldw(DEFAULT_OPAQUE_REG(RING_BASE, 0x288)),
@@ -302,7 +302,7 @@ class Genode::Rcs_misc_context
 		Genode::uint32_t			_noop_2[12];
 
 	public:
-		Rcs_misc_context ()
+		Rcs_misc_context()
 		:
 			_noop_1(Mi_noop),
 			_load_register_immediate_header(0x11000001),
@@ -351,21 +351,21 @@ class Genode::Rcs_context
 		Rcs_misc_context		_rcs_misc_context;
 		Genode::uint32_t		_engine_context[ENGINE_CONTEXT_SIZE/4];
 	public:
-		Rcs_context (addr_t ring_address,
-			     size_t ring_length,
-			     Genode::uint64_t pdp0_addr,
-			     addr_t bb_per_ctx_addr = 0,
-			     addr_t ind_cs_ctx_addr = 0,
-			     size_t ind_cs_ctx_size = 0,
-			     size_t ind_cs_ctx_off  = 0)
+		Rcs_context(addr_t ring_address,
+			    size_t ring_length,
+			    Genode::uint64_t pdp0_addr,
+			    addr_t bb_per_ctx_addr = 0,
+			    addr_t ind_cs_ctx_addr = 0,
+			    size_t ind_cs_ctx_size = 0,
+			    size_t ind_cs_ctx_off  = 0)
 		:
-			_ring_context (Ring_context<RCS_RING_BASE> (ring_address,
-								    ring_length,
-								    bb_per_ctx_addr,
-								    ind_cs_ctx_addr,
-								    ind_cs_ctx_size,
-								    ind_cs_ctx_off)),
-			_ppgtt_context (PPGTT_context<RCS_RING_BASE> (pdp0_addr)),
+			_ring_context(Ring_context<RCS_RING_BASE> (ring_address,
+								   ring_length,
+								   bb_per_ctx_addr,
+								   ind_cs_ctx_addr,
+								   ind_cs_ctx_size,
+								   ind_cs_ctx_off)),
+			_ppgtt_context (PPGTT_context<RCS_RING_BASE>(pdp0_addr)),
 			// FIXME: We need to set R_PWR_CLK_STATE. See make_rpcs() in
 			// intel_lrc.c
 			_rcs_misc_context (Rcs_misc_context())

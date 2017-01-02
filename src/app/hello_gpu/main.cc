@@ -109,13 +109,13 @@ void Component::construct(Genode::Env &env)
 	// Open connection to PCI service
 	static Platform::Device_capability gpu_cap;
 
-	Genode::log ("Hello GPU!");
+	log ("Hello GPU!");
 
 	gpu_cap = find_gpu_device (env);
 	if (!gpu_cap.valid())
 		throw -1;
 
-	Genode::log ("Found GPU device");
+	log ("Found GPU device");
 	print_device_info (gpu_cap);
 	Platform::Device_client device(gpu_cap);
 
@@ -127,7 +127,7 @@ void Component::construct(Genode::Env &env)
 	// Map BAR0
 	Platform::Device::Resource const bar0 = device.resource(0);
 	Io_mem_connection bar0_mem (bar0.base(), bar0.size());
-	bar0_mem.on_destruction(Genode::Io_mem_connection::KEEP_OPEN);
+	bar0_mem.on_destruction(Io_mem_connection::KEEP_OPEN);
 	Io_mem_dataspace_capability bar0_ds = bar0_mem.dataspace();
 
 	if (!bar0_ds.valid())
@@ -137,7 +137,7 @@ void Component::construct(Genode::Env &env)
 	Platform::Device::Resource const bar2 = device.resource(2);
 
 	Io_mem_connection bar2_mem (bar2.base(), bar2.size());
-	bar2_mem.on_destruction(Genode::Io_mem_connection::KEEP_OPEN);
+	bar2_mem.on_destruction(Io_mem_connection::KEEP_OPEN);
 	Io_mem_dataspace_capability bar2_ds = bar2_mem.dataspace();
 	if (!bar2_ds.valid())
 		throw -1;	
@@ -167,7 +167,7 @@ void Component::construct(Genode::Env &env)
 	uint8_t *scratch_addr;
 	if (!gpu_allocator.alloc (4096, (void **)&scratch_addr))
 	{
-		Genode::log ("Allocating scratch page failed");
+		log ("Allocating scratch page failed");
 		throw -1;
 	}
 
@@ -175,7 +175,7 @@ void Component::construct(Genode::Env &env)
 	void *scratch_pa = gpu_allocator.phys_addr (scratch_addr);
 	if (!scratch_pa)
 	{
-		Genode::log ("Error getting scratch page physical address");
+		log ("Error getting scratch page physical address");
 		throw -1;
 	}
 
@@ -188,21 +188,22 @@ void Component::construct(Genode::Env &env)
 		                 .cacheable  = UNCACHED };
 
 	addr_t va = 0xdeadbeef000;
-	Genode::log ("Mapping va=", Genode::Hex(va), " to pa=", Genode::Hex((addr_t)scratch_pa),
-	             " (base of scratch=", Genode::Hex((addr_t)scratch_addr), ")");
+	log ("Mapping va=", Hex(va), " to pa=", Hex((addr_t)scratch_pa),
+	             " (base of scratch=", Hex((addr_t)scratch_addr), ")");
 	ppgtt->insert_translation (va, (addr_t)scratch_pa, 4096, scratch_flags, &gpu_allocator);
 
 	addr_t ppgtt_phys = (addr_t)gpu_allocator.phys_addr (ppgtt);
-	Genode::Rcs_context *ctx = new (gpu_allocator) Genode::Rcs_context ((addr_t)ring_phys, ring_len, ppgtt_phys);
+	Rcs_context *ctx = new (gpu_allocator) Rcs_context ((addr_t)ring_phys, ring_len, ppgtt_phys);
 
-	assert (sizeof (Genode::Rcs_context) == (23 * 4096));
-	Genode::uint32_t *cb = (Genode::uint32_t *)ctx;
-	Genode::log ("Context[0x01]: ", Genode::Hex (cb[0xc01]));
-	Genode::log ("Context[0x21]: ", Genode::Hex (cb[0xc21]));
+	assert (sizeof (Rcs_context) == (23 * 4096));
 
 	addr_t ctx_phys = (addr_t)gpu_allocator.phys_addr (ctx);
 	Context_descriptor ctxdesc (0, 1, ctx_phys);
 
+	uint32_t *cb = (uint32_t *)ctx;
+	log ("Context[0x01]: ", Hex (cb[0xc01]));
+	log ("Context[0x21]: ", Hex (cb[0xc21]));
+
 	pci.release_device (gpu_cap);
-	Genode::log ("Done");
+	log ("Done");
 }
