@@ -8,12 +8,18 @@
 #define _IGD_H_
 
 #include <util/mmio.h>
+#include <context.h>
 
-namespace Genode { class IGD; }
+namespace Genode {
+
+	class IGD;
+}
 
 class Genode::IGD : public Mmio
 {
 	uint64_t *_gtt;
+
+	struct Execlist_submitport : Register<0x2230, 32> { };
 
 	struct FAULT_REG : Register<0x4094, 32>
 	{
@@ -136,8 +142,29 @@ class Genode::IGD : public Mmio
 
 		void insert_gtt_mapping(int offset, void *pa)
 		{
-			this->_gtt[offset] = ((addr_t)pa | 1);
+			_gtt[offset] = ((addr_t)pa | 1);
 
+		}
+
+		void submit_contexts (Context_descriptor element0,
+				      Context_descriptor element1 = Context_descriptor (0, 0, 0, false))
+		{
+			assert (element0.valid());
+			assert (element0 != element1);
+
+			/*
+			 * PRM Volume 2c: Command Reference: Registers, EXECLIST_SUBMITPORT:
+			 * 	Order of DW Submission to the Execlist Port
+			 * 	Element 1, High Dword
+			 * 	Element 1, Low Dword
+			 * 	Element 0, High Dword
+			 * 	Element 0, Low Dword
+			 */
+
+			write<Execlist_submitport>(element1.high_dword());
+			write<Execlist_submitport>(element1.low_dword());
+			write<Execlist_submitport>(element0.high_dword());
+			write<Execlist_submitport>(element0.low_dword());
 		}
 };
 

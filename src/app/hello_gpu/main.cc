@@ -195,14 +195,20 @@ void Component::construct(Genode::Env &env)
 	addr_t ppgtt_phys = (addr_t)gpu_allocator.phys_addr (ppgtt);
 	Rcs_context *ctx = new (gpu_allocator) Rcs_context ((addr_t)ring_phys, ring_len, ppgtt_phys);
 
-	assert (sizeof (Rcs_context) == (23 * 4096));
+	/* FIXME: Add method to context to advance buffer pointers */
+	/* FIXME: Insert MI_STORE_DATA_IMM command with test data into ring_buffer, advance buffer pointers */
+	/* FIXME: Submit and compare results */
 
+	assert (sizeof (Rcs_context) == (23 * 4096));
 	addr_t ctx_phys = (addr_t)gpu_allocator.phys_addr (ctx);
 	Context_descriptor ctxdesc (0, 1, ctx_phys);
 
 	uint32_t *cb = (uint32_t *)ctx;
 	log ("Context[0x01]: ", Hex (cb[0xc01]));
 	log ("Context[0x21]: ", Hex (cb[0xc21]));
+
+	/* Submit context */
+	igd.submit_contexts (ctxdesc);
 
 	pci.release_device (gpu_cap);
 	log ("Done");

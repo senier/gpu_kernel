@@ -419,6 +419,7 @@ class Genode::Context_descriptor
 			(unsigned int	group,
 			 unsigned int	id,
 			 Genode::addr_t	lrca_addr,
+			 bool		valid            = true,
 			 bool		force_restore    = false,
 			 bool		force_pd_restore = false)
 		:
@@ -433,8 +434,29 @@ class Genode::Context_descriptor
 			       Format::Addressing::bits(Format::Addressing::LEGACY_64) |
 			       Format::Force_restore::bits(force_restore) |
 			       Format::Force_pd_restore::bits(force_pd_restore) |
-			       Format::Valid::bits(1))
+			       Format::Valid::bits(valid))
 		{ };
+
+		bool operator != (Context_descriptor const &other) const
+		{
+			return _value != other._value;
+		};
+
+		Genode::uint32_t low_dword ()
+		{
+			return (Genode::uint32_t)(_value & 0xffffffff);
+		};
+
+		Genode::uint32_t high_dword ()
+		{
+			return (Genode::uint32_t)(_value >> 32);
+		};
+
+
+		bool valid()
+		{
+			return Format::Valid::get(_value) == 1;
+		}
 };
 
 #endif /* _CONTEXT_H_ */
