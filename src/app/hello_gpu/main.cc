@@ -200,6 +200,9 @@ void Component::construct(Genode::Env &env)
 	Genode::log ("Context[0x01]: ", Genode::Hex (cb[0xc01]));
 	Genode::log ("Context[0x21]: ", Genode::Hex (cb[0xc21]));
 
+	addr_t ctx_phys = (addr_t)gpu_allocator.phys_addr (ctx);
+	Context_descriptor ctxdesc (0, 1, ctx_phys);
+
 	pci.release_device (gpu_cap);
 	Genode::log ("Done");
 }
