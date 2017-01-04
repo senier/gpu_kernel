@@ -38,6 +38,7 @@
 #define _CONTEXT_H_
 
 #include <util/register.h>
+#include <instructions.h>
 
 namespace Genode {
 
@@ -63,8 +64,6 @@ namespace Genode {
 		return Common_register::Mmio_offset::bits(ring_base + offset) |
 		       Opaque_register::Data::bits(0);
 	};
-
-	enum { Mi_noop = 0UL };
 
 	/*
 	 * Number of pages to be used as  GuC shared data page in context.
@@ -149,7 +148,7 @@ class Genode::Ring_context
 			struct Reserved_mbz_2 : Bitfield< 0,  6> { };
 		};
 
-		Genode::uint32_t			_noop_1;
+		Mi_noop					_noop_1;
 		Genode::uint32_t			_load_register_immediate_header;
 		typename Context_control::access_t	_context_control;
 		typename Ring_buffer_head::access_t	_ring_head_pointer_register;
@@ -165,7 +164,7 @@ class Genode::Ring_context
 		typename Bb_per_ctx_ptr::access_t	_bb_per_ctx_ptr;
 		typename Indirect_ctx_ptr::access_t    	_vcs_indirect_ctx;
 		typename Indirect_ctx_offset::access_t	_vcs_indirect_ctx_offset;
-		Genode::uint32_t			_noop_2[2];
+		Mi_noop					_noop_2[2];
 
 	public:
 		Ring_context(addr_t ring_address,
@@ -175,8 +174,6 @@ class Genode::Ring_context
 			     size_t ind_cs_ctx_size = 0,
 			     size_t ind_cs_ctx_off  = 0)
 		:
-			_noop_1(Mi_noop),
-
 			_load_register_immediate_header(0x1100101b),
 
 			_context_control(Common_register::Mmio_offset::bits(RING_BASE + 0x244) |
@@ -229,7 +226,6 @@ class Genode::Ring_context
 						 Indirect_ctx_offset::Offset::bits(ind_cs_ctx_off) |
 						 Indirect_ctx_offset::Reserved_mbz_2::bits(0))
 		{
-			memset(_noop_2, 0, sizeof(_noop_2));
 		};
 };
 
@@ -254,7 +250,7 @@ class Genode::PPGTT_context
 			       Pdp_descriptor::Value::bits(value);
 		};
 
-		Genode::uint32_t			_noop_1;
+		Mi_noop					_noop_1;
 		Genode::uint32_t			_load_register_immediate_header;
 		typename Ctx_timestamp::access_t	_ctx_timestamp;
 		typename Opaque_register::access_t	_pdp3_udw;
@@ -265,13 +261,11 @@ class Genode::PPGTT_context
 		typename Opaque_register::access_t	_pdp1_ldw;
 		typename Pdp_descriptor::access_t	_pdp0_udw;
 		typename Pdp_descriptor::access_t	_pdp0_ldw;
-		Genode::uint32_t			_noop_2[12];
+		Mi_noop					_noop_2[12];
 
 	public:
 		PPGTT_context (Genode::uint64_t pdp0_addr)
 		:
-			_noop_1(Mi_noop),
-
 			_load_register_immediate_header(0x11001011),
 
 			_ctx_timestamp(Common_register::Mmio_offset::bits(RING_BASE + 0x3a8) |
@@ -287,7 +281,6 @@ class Genode::PPGTT_context
 			_pdp0_udw(PDP_VALUE(0x274, (addr_t) (pdp0_addr >> 32))),
 			_pdp0_ldw(PDP_VALUE(0x270, (addr_t) (pdp0_addr & 0xffffffff)))
 		{
-			memset(_noop_2, 0, sizeof(_noop_2));
 		};
 };
 
@@ -295,19 +288,17 @@ class Genode::Rcs_misc_context
 {
 	private:
 
-		Genode::uint32_t			_noop_1;
+		Mi_noop					_noop_1;
 		Genode::uint32_t			_load_register_immediate_header;
 		typename Opaque_register::access_t	_r_pwr_clk_state;
-		Genode::uint32_t			_noop_2[12];
+		Mi_noop					_noop_2[12];
 
 	public:
 		Rcs_misc_context()
 		:
-			_noop_1(Mi_noop),
 			_load_register_immediate_header(0x11000001),
 			_r_pwr_clk_state(DEFAULT_OPAQUE_REG(0x2000, 0xc8))
 		{
-			memset(_noop_2, 0, sizeof(_noop_2));
 		};
 };
 

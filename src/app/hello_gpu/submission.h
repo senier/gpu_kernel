@@ -11,6 +11,7 @@
 #include <igd.h>
 #include <context.h>
 #include <descriptor.h>
+#include <instructions.h>
 
 namespace Genode {
 
@@ -21,16 +22,14 @@ struct Genode::Submission
 {
 	private:
 
-		struct Ring_element
-		{
-		};
+		using Ring_element = Mi_batch_buffer_start;
 
 		IGD 		  &_igd;
 		Translation_table *_ppgtt;
 
 		addr_t _ppgtt_phys;
 
-		struct Ring_element *_ring;
+		Ring_element *_ring;
 		size_t _ring_len;
 		addr_t _ring_phys;
 
@@ -43,13 +42,13 @@ struct Genode::Submission
 		Submission(Translation_table_allocator *allocator, IGD &igd, unsigned int num_elements)
 		:
 			_igd (igd),
-			_ring_len (num_elements * sizeof(struct Ring_element)),
+			_ring_len (num_elements * sizeof(Ring_element)),
 			_allocator (allocator)
 		{
 			_ppgtt	    = new (_allocator) Translation_table();
 			_ppgtt_phys = (addr_t)_allocator->phys_addr (_ppgtt);
 
-			_ring	   = (struct Ring_element *)_allocator->alloc (_ring_len);
+			_ring	   = (Ring_element *)_allocator->alloc (_ring_len);
 			_ring_phys = (addr_t)_allocator->phys_addr (_ring);
 
 			_ctx	  = new (_allocator) Rcs_context (_ring_phys, _ring_len, _ppgtt_phys);
