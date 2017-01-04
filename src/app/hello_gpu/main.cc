@@ -18,6 +18,7 @@
 #include <igd.h>
 #include <gpu_allocator.h>
 #include <context.h>
+#include <submission.h>
 
 using namespace Genode;
 
@@ -150,18 +151,16 @@ void Component::construct(Genode::Env &env)
 	// GPU DMA allocator
 	GPU_allocator<100> gpu_allocator (env, pci);
 
-	// Allocate one page of DMA memory for ring buffer
-	void *ring_addr;
-	size_t ring_len = 4096;
-	if (!gpu_allocator.alloc (ring_len, &ring_addr)) throw -1;
+	Submission submission (&gpu_allocator, igd, 100);
 
-	// Map start of GTT to physical page
-	void *ring_phys = gpu_allocator.phys_addr (ring_addr);
-	igd.insert_gtt_mapping (0, ring_phys);
-
-	// Single PPGTT for testing
-	Translation_table *ppgtt;
-	if (!gpu_allocator.alloc (sizeof (Translation_table), (void **)&ppgtt)) throw -1;
+	// Allocate one page of DMA memory as batch buffer
+	uint8_t *batch_addr;
+	if (!gpu_allocator.alloc (4096, (void **)&batch_addr))
+	{
+		log ("Allocating batch buffer failed");
+		throw -1;
+	}
+	memset(&batch_addr, 0, 4096);
 
 	// Allocate one page of DMA memory as scratch page for later tests
 	uint8_t *scratch_addr;
@@ -188,27 +187,12 @@ void Component::construct(Genode::Env &env)
 		                 .cacheable  = UNCACHED };
 
 	addr_t va = 0xdeadbeef000;
-	log ("Mapping va=", Hex(va), " to pa=", Hex((addr_t)scratch_pa),
-	             " (base of scratch=", Hex((addr_t)scratch_addr), ")");
-	ppgtt->insert_translation (va, (addr_t)scratch_pa, 4096, scratch_flags, &gpu_allocator);
-
-	addr_t ppgtt_phys = (addr_t)gpu_allocator.phys_addr (ppgtt);
-	Rcs_context *ctx = new (gpu_allocator) Rcs_context ((addr_t)ring_phys, ring_len, ppgtt_phys);
+	log ("Mapping va=", Hex(va), " to pa=", Hex((addr_t)scratch_pa), " (base of scratch=", Hex((addr_t)scratch_addr), ")");
+	submission.insert_translation (va, (addr_t)scratch_pa, 4096, scratch_flags);
 
 	/* FIXME: Add method to context to advance buffer pointers */
 	/* FIXME: Insert MI_STORE_DATA_IMM command with test data into ring_buffer, advance buffer pointers */
 	/* FIXME: Submit and compare results */
-
-	assert (sizeof (Rcs_context) == (23 * 4096));
-	addr_t ctx_phys = (addr_t)gpu_allocator.phys_addr (ctx);
-	Context_descriptor ctxdesc (0, 1, ctx_phys);
-
-	uint32_t *cb = (uint32_t *)ctx;
-	log ("Context[0x01]: ", Hex (cb[0xc01]));
-	log ("Context[0x21]: ", Hex (cb[0xc21]));
-
-	/* Submit context */
-	igd.submit_contexts (ctxdesc);
 
 	pci.release_device (gpu_cap);
 	log ("Done");

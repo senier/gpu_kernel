@@ -9,6 +9,7 @@
 
 #include <util/mmio.h>
 #include <context.h>
+#include <descriptor.h>
 
 namespace Genode {
 
