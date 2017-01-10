@@ -227,6 +227,21 @@ class Genode::Ring_context
 						 Indirect_ctx_offset::Reserved_mbz_2::bits(0))
 		{
 		};
+
+		size_t tail_offset()
+		{
+			return Ring_buffer_tail::Tail_offset::get(_ring_tail_pointer_register);
+		}
+
+		void tail_offset(size_t offset)
+		{
+			Ring_buffer_tail::Tail_offset::set(_ring_tail_pointer_register, offset);
+		}
+
+		size_t head_offset()
+		{
+			return Ring_buffer_head::Head_offset::get(_ring_head_pointer_register);
+		}
 };
 
 template <Genode::addr_t RING_BASE>
@@ -363,6 +378,16 @@ class Genode::Rcs_context
 			memset(_status_pages, 0, sizeof(_status_pages));
 			memset(_engine_context, 0, sizeof(_engine_context));
 		};
+
+		size_t head_offset()
+		{
+			return _ring_context.head_offset();
+		}
+
+		void tail_offset (addr_t offset)
+		{
+			_ring_context.tail_offset(offset);
+		}
 };
 
 #endif /* _CONTEXT_H_ */

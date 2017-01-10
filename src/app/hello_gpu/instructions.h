@@ -56,7 +56,6 @@ struct Genode::Mi_noop : Op_header
 
 struct Genode::Mi_batch_buffer_start
 {
-	private:
 		struct Header : Op_header, Op_len
 		{
 			struct Second_level_batch_buffer : Bitfield<22,  1>
@@ -84,11 +83,12 @@ struct Genode::Mi_batch_buffer_start
 			struct Reserved_mbz_1			: Bitfield< 0,  2> { };
 		};
 
+	private:
 		typename Header::access_t  _header;
 		typename Address::access_t _address;
 
 	public:
-		Mi_batch_buffer_start (uint64_t graphics_address, int level, const int address_space)
+		Mi_batch_buffer_start (uint64_t graphics_address, const int level, const int address_space)
 		:
 			_header (Op_header::Command_type::bits (Op_header::Command_type::MI_COMMAND) |
 				 Op_header::Mi_command_opcode::bits (Op_header::Mi_command_opcode::MI_BATCH_BUFFER_START) |

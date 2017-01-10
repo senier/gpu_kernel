@@ -143,7 +143,7 @@ void Component::construct(Genode::Env &env)
 	if (!bar2_ds.valid())
 		throw -1;	
 
-	uint8_t *aperture_addr = env.rm().attach(bar2_ds, bar2.size());
+	uint8_t *aperture_addr __attribute__((unused)) = env.rm().attach(bar2_ds, bar2.size());
 
 	uint8_t *igd_addr = env.rm().attach(bar0_ds, bar0.size());
 	IGD igd (env, (addr_t) igd_addr);
@@ -153,14 +153,28 @@ void Component::construct(Genode::Env &env)
 
 	Submission submission (&gpu_allocator, igd, 100);
 
+	const Page_flags page_flags = Page_flags
+		{ .writeable  = true,
+		  .executable = true,
+		  .privileged = true,
+		  .global     = false,
+		  .device     = false,
+		  .cacheable  = UNCACHED };
+
 	// Allocate one page of DMA memory as batch buffer
-	uint8_t *batch_addr;
-	if (!gpu_allocator.alloc (4096, (void **)&batch_addr))
+	uint32_t *batch_buffer;
+	if (!gpu_allocator.alloc (4096, (void **)&batch_buffer))
 	{
 		log ("Allocating batch buffer failed");
 		throw -1;
 	}
-	memset(&batch_addr, 0, 4096);
+
+	void *batch_pa = gpu_allocator.phys_addr (batch_buffer);
+	memset(batch_buffer, 0, 4096);
+
+	addr_t batch_ga = 0xba7c4000;
+	submission.insert_translation (batch_ga, (addr_t)batch_pa, 4096, page_flags);
+
 
 	// Allocate one page of DMA memory as scratch page for later tests
 	uint8_t *scratch_addr;
@@ -178,21 +192,19 @@ void Component::construct(Genode::Env &env)
 		throw -1;
 	}
 
-	const Page_flags scratch_flags = Page_flags
-	                 { .writeable  = true,
-		                 .executable = true,
-		                 .privileged = true,
-		                 .global     = false,
-		                 .device     = false,
-		                 .cacheable  = UNCACHED };
+	submission.insert_translation (0xdeadbeef000, (addr_t)scratch_pa, 4096, page_flags);
 
-	addr_t va = 0xdeadbeef000;
-	log ("Mapping va=", Hex(va), " to pa=", Hex((addr_t)scratch_pa), " (base of scratch=", Hex((addr_t)scratch_addr), ")");
-	submission.insert_translation (va, (addr_t)scratch_pa, 4096, scratch_flags);
+	/* Fill batch buffer */
+	// ...
+	batch_buffer[0] = 0;
 
-	/* FIXME: Add method to context to advance buffer pointers */
-	/* FIXME: Insert MI_STORE_DATA_IMM command with test data into ring_buffer, advance buffer pointers */
-	/* FIXME: Submit and compare results */
+	/* Inset batch buffer as new job */
+	submission.insert (batch_ga);
+
+	igd.submit_contexts (submission.context_descriptor());
+	timer.usleep (1000000);
+	//submission.info();
+	igd.status();
 
 	pci.release_device (gpu_cap);
 	log ("Done");

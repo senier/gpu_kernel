@@ -60,10 +60,24 @@ struct Genode::Submission
 			_ppgtt->insert_translation (vo, pa, 4096, flags, _allocator);
 		}
 
+		void insert (addr_t graphics_address)
+		{
+			const int level = Mi_batch_buffer_start::Header::Second_level_batch_buffer::FIRST_LEVEL_BATCH;
+			const int as    = Mi_batch_buffer_start::Header::Address_space_indicator::PPGTT;
+			_ring[0] = Mi_batch_buffer_start (graphics_address, level, as);
+			_ctx->tail_offset (sizeof(Mi_batch_buffer_start));
+		}
+
 		Context_descriptor context_descriptor()
 		{
 			return Context_descriptor (0, 1, _ctx_phys);
 		}
+
+		void info()
+		{
+			Genode::log ("Context info");
+			Genode::log ("   head_offset=", _ctx->head_offset ());
+		};
 };
 
 #endif /* _SUBMISSION_H_ */

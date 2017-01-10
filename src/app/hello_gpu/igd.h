@@ -47,8 +47,6 @@ class Genode::IGD : public Mmio
 		struct Valid_Bit  : Bitfield<0,1> { };
 	};
 
-	struct TIMESTAMP_CTR : Register<0x44070, 32> { };
-
 	// FIXME: Use one structure for rings
 
 	struct RING_BUFFER_TAIL_RCSUNIT : Register<0x02030, 32>
@@ -84,17 +82,45 @@ class Genode::IGD : public Mmio
 		struct Ring_Buffer_Enable            : Bitfield< 0, 1> { };
 	};
 
-	struct ACTHD_RCSUNIT : Register<0x2074, 32>
+	struct GFX_MODE_RCSUNIT : Register<0x0229C, 32>
 	{
-		struct Head_Pointer : Bitfield<2, 30> { };
+		struct Execlist_Enable_Mask	      : Bitfield<31, 1> { };
+		struct Execlist_Enable		      : Bitfield<15, 1> { };
+
+		struct PPGTT_Enable_Mask	      : Bitfield<25, 1> { };
+		struct PPGTT_Enable		      : Bitfield< 9, 1> { };
+
+		struct Virtual_Addressing_Enable_Mask : Bitfield<23, 1> { };
+		struct Virtual_Addressing_Enable      : Bitfield< 7, 1> { };
+
+		struct Privilege_Check_Disable_Mask   : Bitfield<16, 1> { };
+		struct Privilege_Check_Disable	      : Bitfield< 0, 1> { };
 	};
 
-	struct GFX_MODE : Register<0x0229C, 32>
+	struct Execlist_Enable : Bitset_2<GFX_MODE_RCSUNIT::Execlist_Enable, GFX_MODE_RCSUNIT::Execlist_Enable_Mask>
 	{
-		struct Execlist_Enable           : Bitfield<15, 1> { };
-		struct PPGTT_Enable              : Bitfield< 9, 1> { };
-		struct Virtual_Addressing_Enable : Bitfield< 7, 1> { };
-		struct Privilege_Check_Disable   : Bitfield< 0, 1> { };
+		enum {
+			DISABLE = 0b01,
+			ENABLE  = 0b11
+		};
+	};
+
+	struct ERROR : Register<0x40a0, 32>
+	{
+		struct Ctx_fault_ctxt_not_prsmt_err	  : Bitfield<15, 1> { };
+		struct Ctx_fault_root_not_prsmt_err	  : Bitfield<14, 1> { };
+		struct Ctx_fault_pasid_not_prsnt_err	  : Bitfield<13, 1> { };
+		struct Ctx_fault_pasid_ovflw_err	  : Bitfield<12, 1> { };
+		struct Ctx_fault_pasid_dis_err		  : Bitfield<11, 1> { };
+		struct Rstrm_fault_nowb_atomic_err	  : Bitfield<10, 1> { };
+		struct Unloaded_pd_error		  : Bitfield< 8, 1> { };
+		struct Invalid_page_directory_entry_error : Bitfield< 2, 1> { };
+		struct Tlb_fault_error			  : Bitfield< 0, 1> { };
+	};
+
+	struct ERROR_2 : Register<0x40A4, 32>
+	{
+		struct Tlbpend_reg_faultcnt : Bitfield< 0, 6> { };
 	};
 
 	public:
@@ -103,48 +129,39 @@ class Genode::IGD : public Mmio
 		{
 			_gtt = (uint64_t *)(base + 0x800000);
 
-			typedef RING_BUFFER_CTL_RCSUNIT::Automatic_Report_Head_Pointer ARHP;
+			/* Enable Execlist in GFX_MODE register */
+			write<Execlist_Enable>(Execlist_Enable::ENABLE);
+			read<GFX_MODE_RCSUNIT::Execlist_Enable>();
 
-			Genode::log("TSC: ", Hex (read<TIMESTAMP_CTR>()));
+			Genode::log("IGD init done.");
+		}
 
+		void status()
+		{
 			Genode::log("GFX_MODE");
-			Genode::log("   Execlist_Enable:           ", Hex (read<GFX_MODE::Execlist_Enable>()));
-			Genode::log("   PPGTT_Enable:              ", Hex (read<GFX_MODE::PPGTT_Enable>()));
-			Genode::log("   Virtual_Addressing_Enable: ", Hex (read<GFX_MODE::Virtual_Addressing_Enable>()));
-			Genode::log("   Privilege_Check_Disable:   ", Hex (read<GFX_MODE::Privilege_Check_Disable>()));
+			Genode::log("   Execlist_Enable:           ", Hex (read<GFX_MODE_RCSUNIT::Execlist_Enable>()));
+			Genode::log("   PPGTT_Enable:              ", Hex (read<GFX_MODE_RCSUNIT::PPGTT_Enable>()));
+			Genode::log("   Virtual_Addressing_Enable: ", Hex (read<GFX_MODE_RCSUNIT::Virtual_Addressing_Enable>()));
+			Genode::log("   Privilege_Check_Disable:   ", Hex (read<GFX_MODE_RCSUNIT::Privilege_Check_Disable>()));
 
-			// Set ring buffer to start of GTT
-			Genode::log("Setting up ring buffer (1)");
-			Genode::log("   Starting_Address:   ", Hex (read<RING_BUFFER_START_RCSUNIT::Starting_Address>()));
-			Genode::log("   Ring_Buffer_Enable: ", Hex (read<RING_BUFFER_CTL_RCSUNIT::Ring_Buffer_Enable>()));
-			Genode::log("   Buffer_Length:      ", Hex (read<RING_BUFFER_CTL_RCSUNIT::Buffer_Length>()));
+			Genode::log("Error");
+			Genode::log("   Ctx_fault_ctxt_not_prsmt_err:       ", read<ERROR::Ctx_fault_ctxt_not_prsmt_err>());
+			Genode::log("   Ctx_fault_root_not_prsmt_err:       ", read<ERROR::Ctx_fault_root_not_prsmt_err>());
+			Genode::log("   Ctx_fault_pasid_not_prsnt_err:      ", read<ERROR::Ctx_fault_pasid_not_prsnt_err>());
+			Genode::log("   Ctx_fault_pasid_ovflw_err:          ", read<ERROR::Ctx_fault_pasid_ovflw_err>());
+			Genode::log("   Ctx_fault_pasid_dis_err:            ", read<ERROR::Ctx_fault_pasid_dis_err>());
+			Genode::log("   Rstrm_fault_nowb_atomic_err:        ", read<ERROR::Rstrm_fault_nowb_atomic_err>());
+			Genode::log("   Unloaded_pd_error:                  ", read<ERROR::Unloaded_pd_error>());
+			Genode::log("   Invalid_page_directory_entry_error: ", read<ERROR::Invalid_page_directory_entry_error>());
+			Genode::log("   Tlb_fault_error:                    ", read<ERROR::Tlb_fault_error>());
 
-			write<RING_BUFFER_START_RCSUNIT::Starting_Address>(4);
-			write<RING_BUFFER_HEAD_RCSUNIT::Head_Offset>(44);
-			write<RING_BUFFER_TAIL_RCSUNIT::Tail_Offset>(44);
-			write<RING_BUFFER_CTL_RCSUNIT::Buffer_Length>(0);
-			write<RING_BUFFER_CTL_RCSUNIT::Automatic_Report_Head_Pointer>(ARHP::MI_AUTOREPORT_OFF);
-			write<RING_BUFFER_CTL_RCSUNIT::Ring_Buffer_Enable>(1);
-
-			Genode::log("Setting up ring buffer (2)");
-			Genode::log("   Starting_Address:   ", Hex (read<RING_BUFFER_START_RCSUNIT::Starting_Address>()));
-			Genode::log("   Ring_Buffer_Enable: ", Hex (read<RING_BUFFER_CTL_RCSUNIT::Ring_Buffer_Enable>()));
-			Genode::log("   Buffer_Length:      ", Hex (read<RING_BUFFER_CTL_RCSUNIT::Buffer_Length>()));
-
-			unsigned head_pointer = read<ACTHD_RCSUNIT::Head_Pointer>();
-			Genode::log("ACTHD: ", Hex (head_pointer, Hex::OMIT_PREFIX));
-			Genode::log("TSC: ", Hex (read<TIMESTAMP_CTR>()));
-
-			Genode::log("Start of GTT");
-			for (int i = 0; i < 10; i++) {
-				Genode::log("   ", i, ": ", Hex((unsigned long long)_gtt[i]));
-			}
+			Genode::log("ERROR_2");
+			Genode::log("   Tlbpend_reg_faultcnt:               ", read<ERROR_2::Tlbpend_reg_faultcnt>());
 		}
 
 		void insert_gtt_mapping(int offset, void *pa)
 		{
 			_gtt[offset] = ((addr_t)pa | 1);
-
 		}
 
 		void submit_contexts (Context_descriptor element0,
