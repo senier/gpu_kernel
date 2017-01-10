@@ -123,11 +123,24 @@ class Genode::IGD : public Mmio
 		struct Tlbpend_reg_faultcnt : Bitfield< 0, 6> { };
 	};
 
+	struct RC_CONTROL : Register<0xA090, 32> { };
+
+	struct RC_STATE : Register<0xA094, 32>
+	{
+		struct RC6_STATE : Bitfield<18, 1> { };
+	};
+
 	public:
 
 		IGD(Genode::Env &env, addr_t const base) : Mmio(base)
 		{
 			_gtt = (uint64_t *)(base + 0x800000);
+
+			/* Disable RC6 state (may have been enabled by BIOS */
+			write<RC_STATE::RC6_STATE>(1);
+
+			/* Disable RC states  */
+			write<RC_CONTROL>(0);
 
 			/* Enable Execlist in GFX_MODE register */
 			write<Execlist_Enable>(Execlist_Enable::ENABLE);
