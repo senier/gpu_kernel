@@ -97,7 +97,9 @@ class Genode::IGD : public Mmio
 		struct Privilege_Check_Disable	      : Bitfield< 0, 1> { };
 	};
 
-	struct Execlist_Enable : Bitset_2<GFX_MODE_RCSUNIT::Execlist_Enable, GFX_MODE_RCSUNIT::Execlist_Enable_Mask>
+	struct Execlist_Enable :
+		Bitset_2<GFX_MODE_RCSUNIT::Execlist_Enable,
+			 GFX_MODE_RCSUNIT::Execlist_Enable_Mask>
 	{
 		enum {
 			DISABLE = 0b01,
@@ -130,6 +132,13 @@ class Genode::IGD : public Mmio
 		struct RC6_STATE : Bitfield<18, 1> { };
 	};
 
+	struct DC_STATE_EN : Register<0x45504, 32> { };
+
+	struct NDE_RSTWRN_OPT : Register<0x46408, 32>
+	{
+		struct Rst_pch_handshake_en : Bitfield<4, 1> { };
+	};
+
 	struct PWR_WELL_CTL2 : Register<0x45404, 32>
 	{
 		struct Misc_io_power_state              : Bitfield< 0, 1> { };
@@ -148,11 +157,22 @@ class Genode::IGD : public Mmio
 		struct Power_well_2_request             : Bitfield<31, 1> { };
 	};
 
+	struct L3_LRA_1_GPGPU : Register<0x4dd4, 32> { };
+
 	struct HWS_PGA_RCSUNIT  : Register<0x02080, 32> { };
 	struct HWS_PGA_VCSUNIT0 : Register<0x12080, 32> { };
 	struct HWS_PGA_VECSUNIT : Register<0x1A080, 32> { };
 	struct HWS_PGA_VCSUNIT1 : Register<0x1C080, 32> { };
 	struct HWS_PGA_BCSUNIT  : Register<0x22080, 32> { };
+
+	// Taken from linux kernel i915_reg.h (cannot find that in PRM)
+	struct PG_ENABLE : Register<0xa210, 32>
+	{
+		struct Render_pg_enable : Bitfield< 0, 1> { };
+		struct Media_pg_enable  : Bitfield< 1, 1> { };
+	};
+
+	struct RP_CONTROL : Register<0xa024, 32> { }
 
 	public:
 
@@ -169,8 +189,10 @@ class Genode::IGD : public Mmio
 			/* Disable RC6 state (may have been enabled by BIOS */
 			write<RC_STATE::RC6_STATE>(1);
 
-			/* Disable RC states  */
+			/* Disable RC states, power gating and RP (?) */
 			write<RC_CONTROL>(0);
+			write<PG_ENABLE>(0);
+			write<RP_CONTROL>(0);
 
 			/* Set hardware status page */
 			if (hwsp)
@@ -194,6 +216,12 @@ class Genode::IGD : public Mmio
 			/* Enable Execlist in GFX_MODE register */
 			write<Execlist_Enable>(Execlist_Enable::ENABLE);
 			read<GFX_MODE_RCSUNIT::Execlist_Enable>();
+
+			/* Disable PCH handshake */
+			write<NDE_RSTWRN_OPT::Rst_pch_handshake_en>(0);
+
+			/* SKL quirk */
+			write<L3_LRA_1_GPGPU>(0x67F1427F);
 
 			Genode::log("IGD init done.");
 		}
