@@ -145,11 +145,21 @@ void Component::construct(Genode::Env &env)
 
 	uint8_t *aperture_addr __attribute__((unused)) = env.rm().attach(bar2_ds, bar2.size());
 
-	uint8_t *igd_addr = env.rm().attach(bar0_ds, bar0.size());
-	IGD igd (env, (addr_t) igd_addr);
-
 	// GPU DMA allocator
 	GPU_allocator<100> gpu_allocator (env, pci);
+
+	// Allocate hardware status page
+	uint32_t *hwsp;
+	if (!gpu_allocator.alloc (5 * 4096, (void **)&hwsp))
+	{
+		log ("Allocating hardware status page failed");
+		throw -1;
+	}
+	memset(hwsp, 0, 5 * 4096);
+	void *hwsp_pa = gpu_allocator.phys_addr (hwsp);
+
+	uint8_t *igd_addr = env.rm().attach(bar0_ds, bar0.size());
+	IGD igd (env, (addr_t) igd_addr, (addr_t)hwsp_pa);
 
 	Submission submission (&gpu_allocator, igd, 100);
 

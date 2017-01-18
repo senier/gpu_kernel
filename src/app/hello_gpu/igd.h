@@ -130,17 +130,48 @@ class Genode::IGD : public Mmio
 		struct RC6_STATE : Bitfield<18, 1> { };
 	};
 
+	struct HWS_PGA_RCSUNIT  : Register<0x02080, 32> { };
+	struct HWS_PGA_VCSUNIT0 : Register<0x12080, 32> { };
+	struct HWS_PGA_VECSUNIT : Register<0x1A080, 32> { };
+	struct HWS_PGA_VCSUNIT1 : Register<0x1C080, 32> { };
+	struct HWS_PGA_BCSUNIT  : Register<0x22080, 32> { };
+
 	public:
 
-		IGD(Genode::Env &env, addr_t const base) : Mmio(base)
+		IGD(Genode::Env &env, addr_t const base, addr_t const hwsp = 0) : Mmio(base)
 		{
 			_gtt = (uint64_t *)(base + 0x800000);
+
+			/* Disable DC state */
+			write<DC_STATE_EN>(0);
+
+			/* Enable PCH handshake */
+			write<NDE_RSTWRN_OPT::Rst_pch_handshake_en>(1);
 
 			/* Disable RC6 state (may have been enabled by BIOS */
 			write<RC_STATE::RC6_STATE>(1);
 
 			/* Disable RC states  */
 			write<RC_CONTROL>(0);
+
+			/* Set hardware status page */
+			if (hwsp)
+			{
+				write<HWS_PGA_RCSUNIT>(hwsp);
+				read<HWS_PGA_RCSUNIT>();
+
+				write<HWS_PGA_VCSUNIT0>(hwsp + 1 * 4096);
+				read<HWS_PGA_VCSUNIT0>();
+
+				write<HWS_PGA_VECSUNIT>(hwsp + 2 * 4096);
+				read<HWS_PGA_VECSUNIT>();
+
+				write<HWS_PGA_VCSUNIT1>(hwsp + 3 * 4096);
+				read<HWS_PGA_VCSUNIT1>();
+
+				write<HWS_PGA_BCSUNIT>(hwsp + 4 * 4096);
+				read<HWS_PGA_BCSUNIT>();
+			}
 
 			/* Enable Execlist in GFX_MODE register */
 			write<Execlist_Enable>(Execlist_Enable::ENABLE);
