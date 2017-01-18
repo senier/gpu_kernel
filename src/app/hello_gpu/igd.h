@@ -130,6 +130,24 @@ class Genode::IGD : public Mmio
 		struct RC6_STATE : Bitfield<18, 1> { };
 	};
 
+	struct PWR_WELL_CTL2 : Register<0x45404, 32>
+	{
+		struct Misc_io_power_state              : Bitfield< 0, 1> { };
+		struct Misc_io_power_request            : Bitfield< 1, 1> { };
+		struct Ddi_a_and_ddi_e_io_power_state   : Bitfield< 2, 1> { };
+		struct Ddi_a_and_ddi_e_io_power_request : Bitfield< 3, 1> { };
+		struct Ddi_b_io_power_state             : Bitfield< 4, 1> { };
+		struct Ddi_b_io_power_request           : Bitfield< 5, 1> { };
+		struct Ddi_c_io_power_state             : Bitfield< 6, 1> { };
+		struct Ddi_c_io_power_request           : Bitfield< 7, 1> { };
+		struct Ddi_d_io_power_state             : Bitfield< 8, 1> { };
+		struct Ddi_d_io_power_request           : Bitfield< 9, 1> { };
+		struct Power_well_1_state               : Bitfield<28, 1> { };
+		struct Power_well_1_request             : Bitfield<29, 1> { };
+		struct Power_well_2_state               : Bitfield<30, 1> { };
+		struct Power_well_2_request             : Bitfield<31, 1> { };
+	};
+
 	struct HWS_PGA_RCSUNIT  : Register<0x02080, 32> { };
 	struct HWS_PGA_VCSUNIT0 : Register<0x12080, 32> { };
 	struct HWS_PGA_VECSUNIT : Register<0x1A080, 32> { };
@@ -180,14 +198,27 @@ class Genode::IGD : public Mmio
 			Genode::log("IGD init done.");
 		}
 
-		void status()
+		void power_status()
 		{
-			Genode::log("GFX_MODE");
-			Genode::log("   Execlist_Enable:           ", Hex (read<GFX_MODE_RCSUNIT::Execlist_Enable>()));
-			Genode::log("   PPGTT_Enable:              ", Hex (read<GFX_MODE_RCSUNIT::PPGTT_Enable>()));
-			Genode::log("   Virtual_Addressing_Enable: ", Hex (read<GFX_MODE_RCSUNIT::Virtual_Addressing_Enable>()));
-			Genode::log("   Privilege_Check_Disable:   ", Hex (read<GFX_MODE_RCSUNIT::Privilege_Check_Disable>()));
+			Genode::log("PWR_WELL_CTL2");
+			Genode::log("   Misc_io_power_state:              ", read<PWR_WELL_CTL2::Misc_io_power_state>());
+			Genode::log("   Misc_io_power_request:            ", read<PWR_WELL_CTL2::Misc_io_power_request>());
+			Genode::log("   Ddi_a_and_ddi_e_io_power_state:   ", read<PWR_WELL_CTL2::Ddi_a_and_ddi_e_io_power_state>());
+			Genode::log("   Ddi_a_and_ddi_e_io_power_request: ", read<PWR_WELL_CTL2::Ddi_a_and_ddi_e_io_power_request>());
+			Genode::log("   Ddi_b_io_power_state:             ", read<PWR_WELL_CTL2::Ddi_b_io_power_state>());
+			Genode::log("   Ddi_b_io_power_request:           ", read<PWR_WELL_CTL2::Ddi_b_io_power_request>());
+			Genode::log("   Ddi_c_io_power_state:             ", read<PWR_WELL_CTL2::Ddi_c_io_power_state>());
+			Genode::log("   Ddi_c_io_power_request:           ", read<PWR_WELL_CTL2::Ddi_c_io_power_request>());
+			Genode::log("   Ddi_d_io_power_state:             ", read<PWR_WELL_CTL2::Ddi_d_io_power_state>());
+			Genode::log("   Ddi_d_io_power_request:           ", read<PWR_WELL_CTL2::Ddi_d_io_power_request>());
+			Genode::log("   Power_well_1_state:               ", read<PWR_WELL_CTL2::Power_well_1_state>());
+			Genode::log("   Power_well_1_request:             ", read<PWR_WELL_CTL2::Power_well_1_request>());
+			Genode::log("   Power_well_2_state:               ", read<PWR_WELL_CTL2::Power_well_2_state>());
+			Genode::log("   Power_well_2_request:             ", read<PWR_WELL_CTL2::Power_well_2_request>());
+		}
 
+		void error_status()
+		{
 			Genode::log("Error");
 			Genode::log("   Ctx_fault_ctxt_not_prsmt_err:       ", read<ERROR::Ctx_fault_ctxt_not_prsmt_err>());
 			Genode::log("   Ctx_fault_root_not_prsmt_err:       ", read<ERROR::Ctx_fault_root_not_prsmt_err>());
@@ -201,6 +232,17 @@ class Genode::IGD : public Mmio
 
 			Genode::log("ERROR_2");
 			Genode::log("   Tlbpend_reg_faultcnt:               ", read<ERROR_2::Tlbpend_reg_faultcnt>());
+		}
+
+		void status()
+		{
+			Genode::log("GFX_MODE");
+			Genode::log("   Execlist_Enable:           ", Hex (read<GFX_MODE_RCSUNIT::Execlist_Enable>()));
+			Genode::log("   Privilege_Check_Disable:   ", Hex (read<GFX_MODE_RCSUNIT::Privilege_Check_Disable>()));
+			Genode::log("HWS_PGA: ", Hex (read<HWS_PGA_RCSUNIT>()));
+
+			//error_status();
+			//power_status();
 		}
 
 		void insert_gtt_mapping(int offset, void *pa)
