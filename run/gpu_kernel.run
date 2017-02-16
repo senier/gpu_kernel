@@ -189,7 +189,7 @@ append config {
 		<route>
 			<service name="Platform"> <child name="platform_drv"/> </service>
 			<service name="Timer"> <child name="timer"/> </service>
-			<any-service> <any-child/> <parent/> </any-service>
+			<any-service> <parent/> <any-child/> </any-service>
 		</route>
 	</start>
 

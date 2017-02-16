@@ -172,58 +172,63 @@ class Genode::IGD : public Mmio
 		struct Media_pg_enable  : Bitfield< 1, 1> { };
 	};
 
-	struct RP_CONTROL : Register<0xa024, 32> { }
+	struct RP_CONTROL : Register<0xa024, 32> { };
+
+	struct RCS_RING_CONTEXT_STATUS_PTR : Register<0x23a0, 32> { };
+
+	private:
+
+		template <typename T>
+		inline void
+		write_reg (typename T::access_t const value)
+		{
+			write<T>(value);
+			(void)read<T>;
+		}
+
+		template <typename T>
+		inline void
+		write_reg (typename T::Bitfield_base::Compound_reg::access_t const value)
+		{
+			write<T>(value);
+			(void)read<T>;
+		}
 
 	public:
 
-		IGD(Genode::Env &env, addr_t const base, addr_t const hwsp = 0) : Mmio(base)
+		IGD(Genode::Env &env, addr_t const base, addr_t const hwsp) : Mmio(base)
 		{
 			_gtt = (uint64_t *)(base + 0x800000);
 
 			/* Disable DC state */
-			write<DC_STATE_EN>(0);
+			write_reg<DC_STATE_EN>(0);
 
 			/* Enable PCH handshake */
-			write<NDE_RSTWRN_OPT::Rst_pch_handshake_en>(1);
+			write_reg<NDE_RSTWRN_OPT::Rst_pch_handshake_en>(1);
 
 			/* Disable RC6 state (may have been enabled by BIOS */
-			write<RC_STATE::RC6_STATE>(1);
+			write_reg<RC_STATE::RC6_STATE>(1);
 
 			/* Disable RC states, power gating and RP (?) */
-			write<RC_CONTROL>(0);
-			write<PG_ENABLE>(0);
-			write<RP_CONTROL>(0);
+			write_reg<RC_CONTROL>(0);
+			write_reg<PG_ENABLE>(0);
+			write_reg<RP_CONTROL>(0);
 
 			/* Set hardware status page */
-			if (hwsp)
-			{
-				write<HWS_PGA_RCSUNIT>(hwsp);
-				read<HWS_PGA_RCSUNIT>();
-
-				write<HWS_PGA_VCSUNIT0>(hwsp + 1 * 4096);
-				read<HWS_PGA_VCSUNIT0>();
-
-				write<HWS_PGA_VECSUNIT>(hwsp + 2 * 4096);
-				read<HWS_PGA_VECSUNIT>();
-
-				write<HWS_PGA_VCSUNIT1>(hwsp + 3 * 4096);
-				read<HWS_PGA_VCSUNIT1>();
-
-				write<HWS_PGA_BCSUNIT>(hwsp + 4 * 4096);
-				read<HWS_PGA_BCSUNIT>();
-			}
+			write_reg<HWS_PGA_RCSUNIT>(hwsp);
 
 			/* Enable Execlist in GFX_MODE register */
 			write<Execlist_Enable>(Execlist_Enable::ENABLE);
-			read<GFX_MODE_RCSUNIT::Execlist_Enable>();
+
+			//uint32_t status = read<RCS_RING_CONTEXT_STATUS_PTR>();
 
 			/* Disable PCH handshake */
-			write<NDE_RSTWRN_OPT::Rst_pch_handshake_en>(0);
+			write_reg<NDE_RSTWRN_OPT::Rst_pch_handshake_en>(0);
 
 			/* SKL quirk */
-			write<L3_LRA_1_GPGPU>(0x67F1427F);
+			write_reg<L3_LRA_1_GPGPU>(0x67F1427F);
 
-			Genode::log("IGD init done.");
+			Genode::log("IGD init done status=%08x.");
 		}
 
 		void power_status()
@@ -293,10 +298,10 @@ class Genode::IGD : public Mmio
 			 * 	Element 0, Low Dword
 			 */
 
-			write<Execlist_submitport>(element1.high_dword());
-			write<Execlist_submitport>(element1.low_dword());
-			write<Execlist_submitport>(element0.high_dword());
-			write<Execlist_submitport>(element0.low_dword());
+			write_reg<Execlist_submitport>(element1.high_dword());
+			write_reg<Execlist_submitport>(element1.low_dword());
+			write_reg<Execlist_submitport>(element0.high_dword());
+			write_reg<Execlist_submitport>(element0.low_dword());
 		}
 };
 
